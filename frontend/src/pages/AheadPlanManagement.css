@@ -1,0 +1,49 @@
+/* 专项计划管理：审核/批准按钮强制白色字体，强化对比度安全（含 hover、disabled、loading、图标） */
+.ahead-plan-toolbar-btn-white,
+.ahead-plan-toolbar-btn-white:hover,
+.ahead-plan-toolbar-btn-white:focus,
+.ahead-plan-toolbar-btn-white:active,
+.ahead-plan-toolbar-btn-white.ant-btn-loading {
+  color: #fff !important;
+}
+.ahead-plan-toolbar-btn-white span,
+.ahead-plan-toolbar-btn-white .anticon,
+.ahead-plan-toolbar-btn-white:hover span,
+.ahead-plan-toolbar-btn-white:hover .anticon,
+.ahead-plan-toolbar-btn-white.ant-btn-loading span,
+.ahead-plan-toolbar-btn-white.ant-btn-loading .anticon {
+  color: #fff !important;
+}
+
+/* 汇总统计视图：强制方角风格，对齐工业视觉 */
+.summary-table-square,
+.summary-table-square .ant-table,
+.summary-table-square .ant-table-container,
+.summary-table-square .ant-table-content,
+.summary-table-square .ant-table-thead > tr > th,
+.summary-table-square .ant-table-tbody > tr > td {
+  border-radius: 0 !important;
+}
+
+/* 展开行的选中高亮样式 */
+.ant-table-row-selected-square > td {
+  background-color: #f0f9ff !important;
+  border-left: 3px solid #1890ff !important;
+}
+
+.square-radio-group .ant-radio-button-wrapper {
+  border-radius: 0 !important;
+}
+
+.dim-stat-row-hover:hover {
+  background-color: #f8fafc !important;
+}
+
+/* 汇总页全局方角：Tag, Button, Input */
+.summary-table-square .ant-tag,
+.summary-table-square .ant-btn,
+.summary-table-square .ant-input-affix-wrapper,
+.summary-table-square .ant-input,
+.summary-table-square .ant-radio-button-wrapper {
+  border-radius: 0 !important;
+}

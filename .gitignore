@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+myenv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+
+# IDE
+# .vscode/  # 保留 .vscode/settings.json 以便团队共享配置
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+# 但保留 .env.example 作为配置模板
+!.env.example
+
+# Encrypted secrets (备选方案)
+backend/config/.secrets.key
+backend/config/secrets.encrypted
+backend/app/ocr/models
+backend/temp_exports
+config/.secrets.key
+config/secrets.encrypted
+mysql_reset_pwd.sql
+mysql_reset_log.txt
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+.codex-logs/
+
+# OS
+.DS_Store
+Thumbs.db
+Microsoft/
+Python/
+
+# Uploads (only ignore data directories in project root, not code files/directories)
+/uploads/
+/reports/
+/powerbi/
+
+# Original System
+original system/
+

@@ -1,0 +1,43 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.45
+pymysql>=1.1.1
+cryptography>=43.0.1
+python-dotenv>=1.0.0
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+python-multipart>=0.0.18
+openpyxl==3.1.5
+pandas>=3.0.0
+# 必须 1.26.4：numpy 2.x 在 Windows Server 2016 上会导致导入阻塞，见 backend/hints/修复numpy版本问题.md
+numpy==1.26.4
+email-validator==2.1.0
+python-jose[cryptography]>=3.4.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+aiofiles==23.2.1
+requests==2.31.0
+Primavera-REST-Api==0.1.0
+redis==5.0.1
+apscheduler==3.10.4
+psutil>=5.9.0
+gunicorn>=21.2.0
+hvac>=2.0.0
+
+# OCR 模块 (使用 ONNX Runtime 替代 PaddlePaddle，解决 Windows 虚拟机 DLL 兼容性问题)
+# 精度: PP-OCRv5 Server (与官方一致)
+# 性能: 自动回退基础指令集，不依赖 AVX
+onnxruntime>=1.16.0
+rapidocr_onnxruntime>=1.3.0
+rapid_table==0.3.0
+rapid_layout==0.2.1
+# 带边框表格网格检测用；限定 <4.10 避免拉取 numpy>=2（与上方 numpy==1.26.4 冲突）
+opencv-python-headless>=4.8.0,<4.10.0
+# PDF：优先提取文本/表格，失败时转图像 OCR
+pdfplumber>=0.11.0
+pymupdf>=1.24.0
+# OCR 导出 Word
+python-docx>=1.1.0
+
+# DeepSeek API（OpenAI 兼容）
+openai>=1.0.0

@@ -1,0 +1,21 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/myenv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.venvPath": "${workspaceFolder}",
+  "python.venvFolders": [
+    "${workspaceFolder}/myenv"
+  ],
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.formatOnSave": true
+  },
+  // 终端显示优化配置
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.fontFamily": "Consolas, 'Microsoft YaHei Mono', monospace",
+  "terminal.integrated.rendererType": "dom",
+  "terminal.integrated.encoding": "utf8",
+  "terminal.integrated.enableMultiLinePasteWarning": false
+}
+

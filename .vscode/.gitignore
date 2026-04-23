@@ -1,0 +1,6 @@
+# 忽略 VSCode 用户特定设置
+launch.json
+tasks.json
+extensions.json
+*.code-workspace
+
