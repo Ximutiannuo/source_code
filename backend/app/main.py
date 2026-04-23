@@ -21,7 +21,7 @@ setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Ensure core manufacturing models are imported before metadata initialization.
-from app.models import bom, ecn, procurement, user  # noqa: E402,F401
+from app.models import bom, ecn, inventory, procurement, user  # noqa: E402,F401
 
 app = FastAPI(
     title="Manufacturing Management Platform API",

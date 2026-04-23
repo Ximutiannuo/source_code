@@ -38,6 +38,7 @@ class ProcurementRequest(Base):
         cascade="all, delete-orphan",
         order_by="ProcurementRequestItem.id",
     )
+    material_transactions = relationship("MaterialTransaction", back_populates="procurement_request")
 
     @property
     def source_order_number(self):
@@ -56,6 +57,7 @@ class ProcurementRequestItem(Base):
         nullable=False,
         index=True,
     )
+    material_id = Column(Integer, ForeignKey("materials.id", ondelete="SET NULL"), nullable=True, index=True)
     material_code = Column(String(50), index=True, nullable=False)
     material_name = Column(String(200), nullable=False)
     unit = Column(String(20), nullable=True)
@@ -67,6 +69,7 @@ class ProcurementRequestItem(Base):
     suggested_action = Column(String(50), nullable=True)
     urgency_level = Column(String(20), nullable=True)
     requested_qty = Column(Float, default=0)
+    received_qty = Column(Float, default=0)
     shortage_qty = Column(Float, default=0)
     shortage_with_safety_qty = Column(Float, default=0)
     current_stock = Column(Float, default=0)
@@ -84,3 +87,4 @@ class ProcurementRequestItem(Base):
     updated_at = Column(DateTime, default=system_now, onupdate=system_now)
 
     request = relationship("ProcurementRequest", back_populates="items")
+    material = relationship("Material", back_populates="procurement_items")

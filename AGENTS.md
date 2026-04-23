@@ -1,10 +1,18 @@
 # AGENTS.md
 
 ## Project Information
-Project Controls system for engineering schedules (P6 Integration).
+Mechanical manufacturing digital platform transitioning from a project-controls tool into an ERP/MES system.
 
 - **Backend**: FastAPI (Python 3.8+), SQLAlchemy, MySQL, Redis.
 - **Frontend**: React (TypeScript), Vite, Ant Design.
+
+## Strategic Direction
+- The current strategic goal is ERP evolution: move from progress-only management to integrated management of logistics and cash flow.
+- Legacy P6 and engineering schedule modules are no longer the primary direction. Do not expand P6-first designs unless the user explicitly asks for legacy maintenance.
+- New models, services, and APIs must prioritize end-to-end business flow across BOM, procurement, inventory, manufacturing execution, and cost accounting.
+- Every new or changed transactional data model must include financial attributes when meaningful, such as `unit_price`, `total_price`, `tax_rate`, `fee_rate`, or equivalent cost fields.
+- Every material and inventory design must represent lifecycle quantities or statuses when meaningful, including `reserved`, `in_transit`, `on_hand`, and `consumed`.
+- Prefer canonical data links that let BOM demand drive procurement, procurement drive receiving, inventory drive issue and return, and execution data drive cost roll-up.
 
 ## Common Commands
 ### Backend
@@ -19,7 +27,7 @@ Project Controls system for engineering schedules (P6 Integration).
 - **Lint**: `npm run lint`
 
 ### Data Sync
-- **Calculate & Sync**: `python run_sync_and_calculate.py`
+- **Calculate & Sync**: `python run_sync_and_calculate.py` (legacy)
 
 ## Guidelines (Karpathy-Skills)
 *Source: C:\Users\王白东\.gemini\antigravity\skills\karpathy-skills*

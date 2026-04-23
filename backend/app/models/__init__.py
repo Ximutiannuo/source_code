@@ -14,7 +14,6 @@ from .ai_assistant_usage import AIAssistantUsage
 from .ai_assistant_query_log import AIAssistantQueryLog
 from .activity_status import ActivityStatusRecord
 
-# 新增制造板块的基础模型
 from .bom import BOMHeader, BOMItem, Material
 from .order import ManufacturingOrder, OrderItem
 from .production_step import ProductionStep
@@ -23,6 +22,7 @@ from .step_quality_check import StepQualityCheck
 from .equipment import Equipment
 from .equipment_maintenance import EquipmentMaintenance
 from .ecn import ECNHeader, ECNImpact
+from .inventory import Warehouse, InventoryBalance, MaterialTransaction
 from .procurement import ProcurementRequest, ProcurementRequestItem
 
 __all__ = [
@@ -54,8 +54,6 @@ __all__ = [
     "RSCDefine",
     "AIAssistantUsage",
     "AIAssistantQueryLog",
-    
-    # 制造板块
     "BOMHeader",
     "BOMItem",
     "Material",
@@ -68,6 +66,9 @@ __all__ = [
     "EquipmentMaintenance",
     "ECNHeader",
     "ECNImpact",
+    "Warehouse",
+    "InventoryBalance",
+    "MaterialTransaction",
     "ProcurementRequest",
     "ProcurementRequestItem",
 ]
