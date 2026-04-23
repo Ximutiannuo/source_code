@@ -68,12 +68,12 @@ def migrate():
             else:
                 print(f"添加 vfactdb 外键约束时遇到警告: {e}")
 
-        # 5. 同步数据：将 is_system_sync = 1 的记录标记为 update_method = 'welding_sync'
+        # 5. 同步数据：将 is_system_sync = 1 的记录标记为 update_method = 'system_sync'
         print("\n同步历史数据...")
         vfact_sync_count = db.execute(text(
-            "UPDATE vfactdb SET update_method = 'welding_sync' WHERE is_system_sync = 1 AND update_method IS NULL"
+            "UPDATE vfactdb SET update_method = 'system_sync' WHERE is_system_sync = 1 AND update_method IS NULL"
         )).rowcount
-        print(f"已更新 {vfact_sync_count} 条 vfactdb 记录的 update_method 为 'welding_sync'。")
+        print(f"已更新 {vfact_sync_count} 条 vfactdb 记录的 update_method 为 'system_sync'。")
 
         db.commit()
         print("\n所有操作已提交。")

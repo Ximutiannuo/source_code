@@ -107,7 +107,6 @@ python backend/scripts/init_permissions_for_aheadplan.py
 
 | 前端页面 | 路径 | 查看 | 修改 | 说明 |
 |----------|------|------|------|------|
-| 诺德焊接数据库管理 | `/external-data/welding` | `welding_data:read` | `welding_data:config:*` / `welding_data:sync` | 前端 ProtectedRoute 需 `welding_data:read` |
 | 外部 MDR 设计管理 | `/external-data/mdr` | `system:admin` | - | 前端 ProtectedRoute 需 `system:admin` |
 
 ### 其他 UI 元素
@@ -191,14 +190,6 @@ python backend/scripts/init_permissions_for_aheadplan.py
 |----------|------|----------|
 | `user:read` / `create` / `update` / `delete` | 用户管理 | 账号管理（需 superuser 或权限） |
 | `permission:read` / `assign` / `revoke` | 权限管理 | 账号管理 |
-
-### 焊接数据
-
-| 权限代码 | 含义 | 主要页面 |
-|----------|------|----------|
-| `welding_data:read` | 查看焊接数据 | 诺德焊接数据库管理 |
-| `welding_data:config:read` / `create` / `update` / `delete` | 焊接数据配置 | 诺德焊接数据库管理 |
-| `welding_data:sync` | 焊接数据同步 | 诺德焊接数据库管理 |
 
 ### 范围限制（scope）
 

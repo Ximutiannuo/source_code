@@ -9,19 +9,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, departments, equipment_mgmt, facility, facility_type
+from app.api import auth, departments, drawing_documents, equipment_mgmt, facility, facility_type
 from app.api import manufacturing_exchange, manufacturing_orders, permissions, process_template, quality as quality_api, users
 from app.database import load_env_with_fallback
 from app.utils.logging import setup_logging
 
-if not os.getenv('DATABASE_URL'):
+if not os.getenv("DATABASE_URL"):
     load_env_with_fallback()
 
 setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Ensure core manufacturing models are imported before metadata initialization.
-from app.models import bom, ecn, inventory, procurement, user  # noqa: E402,F401
+from app.models import bom, drawing_document, ecn, inventory, procurement, user  # noqa: E402,F401
 
 app = FastAPI(
     title="Manufacturing Management Platform API",
@@ -80,6 +80,14 @@ app.include_router(manufacturing_orders.router, prefix="/api/manufacturing", tag
 app.include_router(manufacturing_exchange.router, prefix="/api/manufacturing", tags=["制造数据交换"])
 app.include_router(quality_api.router, prefix="/api/quality", tags=["质量管理"])
 app.include_router(equipment_mgmt.router, prefix="/api/equipment", tags=["设备管理"])
+app.include_router(drawing_documents.router, prefix="/api/plm/drawings", tags=["PLM", "Drawings"])
+
+try:
+    from app.ocr import api as ocr_api
+
+    app.include_router(ocr_api.router, prefix="/api/ocr", tags=["OCR"])
+except ImportError as exc:
+    logger.warning("OCR module not available, skipped registration: %s", exc)
 
 try:
     from app.api import plm

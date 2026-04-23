@@ -24,6 +24,7 @@ from .equipment_maintenance import EquipmentMaintenance
 from .ecn import ECNHeader, ECNImpact
 from .inventory import Warehouse, InventoryBalance, MaterialTransaction
 from .procurement import ProcurementRequest, ProcurementRequestItem
+from .drawing_document import DrawingDocument
 
 __all__ = [
     "WBSNode",
@@ -71,4 +72,5 @@ __all__ = [
     "MaterialTransaction",
     "ProcurementRequest",
     "ProcurementRequestItem",
+    "DrawingDocument",
 ]

@@ -19,7 +19,6 @@ def init_system_task_locks():
         # 预设一些关键任务锁
         tasks = [
             ("daily_report_upload", "用户日报上传/Excel导入"),
-            ("welding_sync", "焊接数据库同步"),
             ("mdr_sync", "MDR设计数据同步"),
             ("background_refresh", "后台全量计算任务")
         ]

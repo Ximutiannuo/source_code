@@ -1,10 +1,13 @@
 from collections import defaultdict
 from datetime import datetime
+from itertools import zip_longest
+import re
 from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
 
 from app.models.bom import BOMHeader, BOMItem, Material
+from app.models.drawing_document import DrawingDocument
 from app.models.ecn import ECNHeader, ECNImpact
 
 
@@ -58,6 +61,52 @@ class PLMService:
                 item["item_level"] = 1
 
         return normalized
+
+    @staticmethod
+    def _serialize_drawing_link(document: Optional[DrawingDocument]) -> Optional[Dict[str, Any]]:
+        if not document:
+            return None
+        return {
+            "id": document.id,
+            "document_number": document.document_number,
+            "document_name": document.document_name,
+            "document_type": document.document_type,
+            "status": document.status,
+            "version": document.version,
+            "revision": document.revision,
+            "material_code": document.material_code,
+            "product_code": document.product_code,
+        }
+
+    @staticmethod
+    def _version_tokens(value: Optional[str]) -> List[Any]:
+        if not value:
+            return []
+        tokens: List[Any] = []
+        for token in re.findall(r"\d+|[A-Za-z]+", str(value).upper()):
+            tokens.append(int(token) if token.isdigit() else token)
+        return tokens
+
+    @staticmethod
+    def _compare_version_values(left: Optional[str], right: Optional[str]) -> int:
+        left_tokens = PLMService._version_tokens(left)
+        right_tokens = PLMService._version_tokens(right)
+        for left_token, right_token in zip_longest(left_tokens, right_tokens, fillvalue=None):
+            if left_token is None:
+                return -1
+            if right_token is None:
+                return 1
+            if left_token == right_token:
+                continue
+            return 1 if left_token > right_token else -1
+        return 0
+
+    @staticmethod
+    def _compare_drawing_versions(candidate: DrawingDocument, current: DrawingDocument) -> int:
+        version_compare = PLMService._compare_version_values(candidate.version, current.version)
+        if version_compare != 0:
+            return version_compare
+        return PLMService._compare_version_values(candidate.revision, current.revision)
 
     @staticmethod
     def get_materials(
@@ -244,7 +293,12 @@ class PLMService:
         if not header:
             raise ValueError("BOM not found")
 
-        db.query(BOMItem).filter(BOMItem.header_id == bom_id).delete(synchronize_session=False)
+        existing_items = {
+            item.id: item
+            for item in db.query(BOMItem).filter(BOMItem.header_id == bom_id).all()
+        }
+        retained_ids: Set[int] = set()
+
         for index, item_data in enumerate(items, start=1):
             child_code = (item_data.get("child_item_code") or "").strip()
             if not child_code:
@@ -257,23 +311,38 @@ class PLMService:
             if total_price in (None, ""):
                 total_price = quantity * unit_price * (1 + loss_rate)
 
-            item = BOMItem(
-                header_id=bom_id,
-                parent_item_code=(item_data.get("parent_item_code") or header.product_code).strip(),
-                child_item_code=child_code,
-                quantity=quantity,
-                component_type=item_data.get("component_type") or "NORMAL",
-                routing_link=item_data.get("routing_link"),
-                find_number=item_data.get("find_number") or str(index),
-                item_level=int(item_data.get("item_level") or 1),
-                item_category=item_data.get("item_category"),
-                procurement_type=item_data.get("procurement_type"),
-                loss_rate=loss_rate,
-                unit_price=unit_price,
-                total_price=float(total_price or 0),
-                source_reference=item_data.get("source_reference"),
-            )
-            db.add(item)
+            item = None
+            item_id = item_data.get("id")
+            if item_id:
+                item = existing_items.get(int(item_id))
+                if item is not None:
+                    retained_ids.add(item.id)
+
+            previous_child_code = item.child_item_code if item is not None else None
+            if item is None:
+                item = BOMItem(header_id=bom_id)
+                db.add(item)
+
+            item.header_id = bom_id
+            item.parent_item_code = (item_data.get("parent_item_code") or header.product_code).strip()
+            item.child_item_code = child_code
+            item.quantity = quantity
+            item.component_type = item_data.get("component_type") or "NORMAL"
+            item.routing_link = item_data.get("routing_link")
+            item.find_number = item_data.get("find_number") or str(index)
+            item.item_level = int(item_data.get("item_level") or 1)
+            item.item_category = item_data.get("item_category")
+            item.procurement_type = item_data.get("procurement_type")
+            item.loss_rate = loss_rate
+            item.unit_price = unit_price
+            item.total_price = float(total_price or 0)
+            item.source_reference = item_data.get("source_reference")
+            if "drawing_document_id" in item_data:
+                item.drawing_document_id = item_data.get("drawing_document_id")
+            elif previous_child_code and previous_child_code != child_code:
+                item.drawing_document_id = None
+                item.drawing_mapping_status = "UNMAPPED"
+                item.drawing_validation_message = "物料编码变更后已清除旧图纸映射"
 
             material_data = item_data.get("material") or {}
             if material_data.get("name") or item_data.get("material_name"):
@@ -288,8 +357,12 @@ class PLMService:
                         "material_type": material_data.get("material_type") or item_data.get("procurement_type"),
                         "drawing_no": material_data.get("drawing_no") or item_data.get("drawing_no"),
                         "revision": material_data.get("revision") or item_data.get("revision") or "A",
-                    },
+                        },
                 )
+
+        for existing_id, existing_item in existing_items.items():
+            if existing_id not in retained_ids:
+                db.delete(existing_item)
         db.flush()
 
     @staticmethod
@@ -300,6 +373,187 @@ class PLMService:
         PLMService.replace_bom_items(db, bom_id, PLMService._normalize_bom_items(header.product_code, items))
         db.commit()
         return header
+
+    @staticmethod
+    def validate_bom_item_drawing_mappings(
+        db: Session,
+        bom_id: int,
+        mappings: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        item_ids = [int(mapping["bom_item_id"]) for mapping in mappings if mapping.get("bom_item_id")]
+        drawing_ids = [int(mapping["drawing_document_id"]) for mapping in mappings if mapping.get("drawing_document_id")]
+
+        bom_items = (
+            db.query(BOMItem)
+            .filter(BOMItem.header_id == bom_id, BOMItem.id.in_(item_ids))
+            .all()
+            if item_ids
+            else []
+        )
+        items_by_id = {item.id: item for item in bom_items}
+
+        drawings = (
+            db.query(DrawingDocument).filter(DrawingDocument.id.in_(drawing_ids)).all()
+            if drawing_ids
+            else []
+        )
+        drawings_by_id = {drawing.id: drawing for drawing in drawings}
+
+        material_codes = {item.child_item_code for item in bom_items if item.child_item_code}
+        materials = (
+            db.query(Material).filter(Material.code.in_(list(material_codes))).all()
+            if material_codes
+            else []
+        )
+        materials_by_code = {material.code: material for material in materials}
+
+        results: List[Dict[str, Any]] = []
+        for mapping in mappings:
+            bom_item_id = int(mapping["bom_item_id"])
+            drawing_document_id = mapping.get("drawing_document_id")
+            item = items_by_id.get(bom_item_id)
+
+            if not item:
+                results.append(
+                    {
+                        "bom_item_id": bom_item_id,
+                        "child_item_code": None,
+                        "find_number": None,
+                        "validation_status": "ERROR",
+                        "can_apply": False,
+                        "message": "BOM明细行不存在",
+                        "warnings": [],
+                        "errors": ["BOM明细行不存在"],
+                        "current_document": None,
+                        "candidate_document": None,
+                    }
+                )
+                continue
+
+            current_document = item.drawing_document
+            if not drawing_document_id:
+                results.append(
+                    {
+                        "bom_item_id": bom_item_id,
+                        "child_item_code": item.child_item_code,
+                        "find_number": item.find_number,
+                        "validation_status": "UNMAPPED",
+                        "can_apply": True,
+                        "message": "将清除当前图纸映射",
+                        "warnings": [],
+                        "errors": [],
+                        "current_document": PLMService._serialize_drawing_link(current_document),
+                        "candidate_document": None,
+                    }
+                )
+                continue
+
+            candidate_document = drawings_by_id.get(int(drawing_document_id))
+            if not candidate_document:
+                results.append(
+                    {
+                        "bom_item_id": bom_item_id,
+                        "child_item_code": item.child_item_code,
+                        "find_number": item.find_number,
+                        "validation_status": "ERROR",
+                        "can_apply": False,
+                        "message": "候选图纸不存在",
+                        "warnings": [],
+                        "errors": ["候选图纸不存在"],
+                        "current_document": PLMService._serialize_drawing_link(current_document),
+                        "candidate_document": None,
+                    }
+                )
+                continue
+
+            warnings: List[str] = []
+            errors: List[str] = []
+            material = materials_by_code.get(item.child_item_code)
+
+            if candidate_document.status == "ARCHIVED":
+                errors.append("归档图纸不能作为当前映射")
+
+            if current_document and current_document.id != candidate_document.id:
+                if current_document.document_number == candidate_document.document_number:
+                    version_compare = PLMService._compare_drawing_versions(candidate_document, current_document)
+                    if version_compare < 0:
+                        errors.append("候选图纸版本低于当前映射版本")
+                    elif version_compare == 0:
+                        warnings.append("候选图纸与当前映射版本一致，将覆盖当前引用")
+                    else:
+                        warnings.append("检测到高版本替换，将更新当前明细行图纸映射")
+                else:
+                    warnings.append(
+                        f"当前图号 {current_document.document_number} 将被 {candidate_document.document_number} 替换"
+                    )
+
+            if material and material.drawing_no and candidate_document.document_number != material.drawing_no:
+                warnings.append(f"候选图号与物料图号 {material.drawing_no} 不一致")
+
+            if candidate_document.material_code and candidate_document.material_code != item.child_item_code:
+                warnings.append(
+                    f"候选图纸关联物料 {candidate_document.material_code} 与明细物料 {item.child_item_code} 不一致"
+                )
+
+            if candidate_document.bom_header_id and candidate_document.bom_header_id != bom_id:
+                warnings.append("候选图纸当前关联到其他BOM版本")
+
+            validation_status = "ERROR" if errors else "WARNING" if warnings else "VALID"
+            message = errors[0] if errors else warnings[0] if warnings else "图纸映射校验通过"
+            results.append(
+                {
+                    "bom_item_id": bom_item_id,
+                    "child_item_code": item.child_item_code,
+                    "find_number": item.find_number,
+                    "validation_status": validation_status,
+                    "can_apply": not errors,
+                    "message": message,
+                    "warnings": warnings,
+                    "errors": errors,
+                    "current_document": PLMService._serialize_drawing_link(current_document),
+                    "candidate_document": PLMService._serialize_drawing_link(candidate_document),
+                }
+            )
+
+        return {"updated": 0, "results": results}
+
+    @staticmethod
+    def apply_bom_item_drawing_mappings(
+        db: Session,
+        bom_id: int,
+        mappings: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        validation = PLMService.validate_bom_item_drawing_mappings(db, bom_id, mappings)
+        result_by_item_id = {result["bom_item_id"]: result for result in validation["results"]}
+
+        if any(not result["can_apply"] for result in validation["results"]):
+            return validation
+
+        item_ids = [int(mapping["bom_item_id"]) for mapping in mappings if mapping.get("bom_item_id")]
+        bom_items = (
+            db.query(BOMItem)
+            .filter(BOMItem.header_id == bom_id, BOMItem.id.in_(item_ids))
+            .all()
+            if item_ids
+            else []
+        )
+        items_by_id = {item.id: item for item in bom_items}
+
+        updated = 0
+        for mapping in mappings:
+            bom_item_id = int(mapping["bom_item_id"])
+            item = items_by_id.get(bom_item_id)
+            if not item:
+                continue
+            result = result_by_item_id.get(bom_item_id)
+            item.drawing_document_id = mapping.get("drawing_document_id") or None
+            item.drawing_mapping_status = result["validation_status"]
+            item.drawing_validation_message = result["message"]
+            updated += 1
+
+        db.commit()
+        validation["updated"] = updated
+        return validation
 
     @staticmethod
     def upsert_material_by_code(db: Session, code: str, payload: Dict[str, Any]) -> Material:
@@ -381,6 +635,13 @@ class PLMService:
 
         materials = db.query(Material).filter(Material.code.in_(list(codes))).all() if codes else []
         material_by_code = {material.code: material for material in materials}
+        drawing_document_ids = {item.drawing_document_id for item in items if item.drawing_document_id}
+        drawing_documents = (
+            db.query(DrawingDocument).filter(DrawingDocument.id.in_(list(drawing_document_ids))).all()
+            if drawing_document_ids
+            else []
+        )
+        drawing_by_id = {drawing.id: drawing for drawing in drawing_documents}
         total_cost = 0.0
         item_rows: List[Dict[str, Any]] = []
         for item in items:
@@ -402,6 +663,10 @@ class PLMService:
                     "unit_price": float(item.unit_price or 0),
                     "total_price": line_total,
                     "source_reference": item.source_reference,
+                    "drawing_document_id": item.drawing_document_id,
+                    "drawing_mapping_status": item.drawing_mapping_status or ("VALID" if item.drawing_document_id else "UNMAPPED"),
+                    "drawing_validation_message": item.drawing_validation_message,
+                    "drawing_document": drawing_by_id.get(item.drawing_document_id),
                     "material": material_by_code.get(item.child_item_code),
                 }
             )

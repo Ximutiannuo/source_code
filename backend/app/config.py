@@ -35,7 +35,6 @@ class Settings(BaseSettings):
     DB_PORT: int = 3306
     DB_INSTANCE: str = "gcc"  # 数据库实例名
     DB_NAME: str = "projectcontrols"  # 主数据库名
-    DB_PRECOMCONTROL_NAME: str = "PRECOMCONTROL"  # 焊接数据数据库名
     
     # 角色数据库账号配置（从环境变量读取，不硬编码密码）
     # 格式：ROLE_NAME_USERNAME, ROLE_NAME_PASSWORD
@@ -54,9 +53,6 @@ class Settings(BaseSettings):
     # Planner
     ROLE_PLANNER_USERNAME: str = "role_planner"
     ROLE_PLANNER_PASSWORD: str = ""
-    
-    # PRECOMCONTROL数据库URL（用于向后兼容，如果设置了会优先使用）
-    PRECOMCONTROL_DATABASE_URL: Optional[str] = None
     
     # JWT配置
     # SECRET_KEY建议从环境变量读取，或通过Vault自动注入
@@ -213,54 +209,4 @@ class Settings(BaseSettings):
         
         return database_url
     
-    def get_role_precomcontrol_url(self, role_name: str) -> Optional[str]:
-        """
-        根据角色名称获取对应的PRECOMCONTROL数据库连接URL（使用SecretManager）
-        
-        Args:
-            role_name: 角色名称
-            
-        Returns:
-            PRECOMCONTROL数据库连接URL，如果角色未配置则返回None
-        """
-        from app.services.secret_manager import get_secret_manager
-        
-        # 角色名称映射（与 get_role_database_url 保持一致）
-        role_mapping = {
-            '计划经理': 'PLANNING_MANAGER',
-            '系统管理员': 'SYSTEM_ADMIN',
-            '计划主管': 'PLANNING_SUPERVISOR',
-        }
-        
-        secret_manager = get_secret_manager()
-        
-        # 获取角色key
-        if role_name in role_mapping:
-            role_key = role_mapping[role_name]
-        elif role_name.endswith('Planner') or role_name == 'Planner':
-            # 所有 Planner 角色共用 role_planner 账号
-            role_key = 'PLANNER'
-        elif role_name.endswith('ConstructionSupervisor') or role_name == 'ConstructionSupervisor':
-            # 所有施工主管角色共用 role_construction_supervisor 账号
-            role_key = 'CONSTRUCTION_SUPERVISOR'
-        else:
-            role_key = role_name.upper().replace(' ', '_')
-        
-        # 从SecretManager获取
-        username = secret_manager.get_role_username(role_key)
-        password = secret_manager.get_role_password(role_key)
-        
-        if not username or not password:
-            return None
-        
-        encoded_password = quote_plus(password)
-        
-        database_url = (
-            f"mysql+pymysql://{username}:{encoded_password}@"
-            f"{self.DB_HOST}:{self.DB_PORT}/{self.DB_PRECOMCONTROL_NAME}?charset=utf8mb4"
-        )
-        
-        return database_url
-
-
 settings = Settings()

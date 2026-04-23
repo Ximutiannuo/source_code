@@ -46,6 +46,12 @@ SCHEMA_PATCHES: Dict[str, List[SchemaPatch]] = {
         ("unit_price", "ALTER TABLE bom_items ADD COLUMN unit_price DOUBLE DEFAULT 0"),
         ("total_price", "ALTER TABLE bom_items ADD COLUMN total_price DOUBLE DEFAULT 0"),
         ("source_reference", "ALTER TABLE bom_items ADD COLUMN source_reference VARCHAR(255) NULL"),
+        ("drawing_document_id", "ALTER TABLE bom_items ADD COLUMN drawing_document_id INTEGER NULL"),
+        ("drawing_mapping_status", "ALTER TABLE bom_items ADD COLUMN drawing_mapping_status VARCHAR(30) DEFAULT 'UNMAPPED'"),
+        ("drawing_validation_message", "ALTER TABLE bom_items ADD COLUMN drawing_validation_message VARCHAR(255) NULL"),
+    ],
+    "drawing_documents": [
+        ("source_relative_path", "ALTER TABLE drawing_documents ADD COLUMN source_relative_path VARCHAR(500) NULL"),
     ],
     "template_activities": [
         ("standard_hours", "ALTER TABLE template_activities ADD COLUMN standard_hours DECIMAL(10, 2) DEFAULT 8"),

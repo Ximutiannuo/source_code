@@ -80,5 +80,9 @@ class BOMItem(Base):
     unit_price = Column(Float, default=0, comment="Estimated unit price")
     total_price = Column(Float, default=0, comment="Extended total price")
     source_reference = Column(String(255), comment="CAD feature or source reference")
+    drawing_document_id = Column(Integer, ForeignKey("drawing_documents.id", ondelete="SET NULL"), index=True)
+    drawing_mapping_status = Column(String(30), default="UNMAPPED", comment="UNMAPPED, VALID, WARNING, ERROR")
+    drawing_validation_message = Column(String(255), comment="Latest drawing mapping validation message")
 
     header = relationship("BOMHeader", back_populates="items")
+    drawing_document = relationship("DrawingDocument", back_populates="bom_items")

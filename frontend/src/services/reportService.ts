@@ -221,36 +221,6 @@ export const reportService = {
     return response.data
   },
 
-  // 从WeldingList同步PI04/PI05数据
-  async syncWeldingPi04Pi05(options?: {
-    targetDate?: string
-    startDate?: string
-    endDate?: string
-  }) {
-    const params: any = {}
-    if (options?.targetDate) {
-      params.target_date = options.targetDate
-    }
-    if (options?.startDate) {
-      params.start_date = options.startDate
-    }
-    if (options?.endDate) {
-      params.end_date = options.endDate
-    }
-    // 后台任务立即返回，不需要长超时
-    const response = await api.post('/reports/vfactdb/sync-welding', null, { 
-      params,
-      timeout: 10000 // 10秒足够（只是启动任务）
-    })
-    return response.data
-  },
-
-  // 获取最近的焊接数据同步结果
-  async getLatestWeldingSyncResult() {
-    const response = await api.get('/reports/vfactdb/sync-welding/latest')
-    return response.data
-  },
-
   // InspectionDB (验收日报)
   async getItpDefinitions(params?: { status?: string }) {
     const response = await api.get('/reports/itp-definitions', { params })

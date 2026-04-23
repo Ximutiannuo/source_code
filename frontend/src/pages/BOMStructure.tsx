@@ -17,7 +17,9 @@ import {
   Space,
   Spin,
   Statistic,
+  Radio,
   Switch,
+  Tag,
   Table,
   Tree,
   Typography,
@@ -39,7 +41,15 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { plmService, type BOMDetail, type BOMNode, type BOMSavePayload } from '../services/plmService'
+import { drawingDocumentService, type DrawingDocument } from '../services/drawingDocumentService'
+import {
+  plmService,
+  type BOMDetail,
+  type BOMItem,
+  type BOMItemDrawingValidation,
+  type BOMNode,
+  type BOMSavePayload,
+} from '../services/plmService'
 
 const { Title, Text, Paragraph } = Typography
 const { Sider, Content } = Layout
@@ -71,6 +81,7 @@ const PROCUREMENT_TYPE_OPTIONS = [
 ]
 
 type EditableBOMItem = {
+  id?: number
   localKey: string
   parent_item_code?: string
   child_item_code: string
@@ -88,6 +99,7 @@ type EditableBOMItem = {
   unit_price?: number
   total_price?: number
   source_reference?: string
+  drawing_document_id?: number | null
   children?: EditableBOMItem[]
 }
 
@@ -119,6 +131,37 @@ const createEditableItem = (parentItemCode?: string): EditableBOMItem => ({
   total_price: 0,
   source_reference: '',
 })
+
+const getDrawingVersionLabel = (version?: string | null, revision?: string | null) => {
+  const parts = [version, revision ? `Rev.${revision}` : null].filter(Boolean)
+  return parts.length ? parts.join(' / ') : '-'
+}
+
+const getDrawingMappingStatusMeta = (status?: string | null) => {
+  switch (status) {
+    case 'VALID':
+      return { color: 'success', label: '已校验' as const }
+    case 'WARNING':
+      return { color: 'warning', label: '待确认' as const }
+    case 'ERROR':
+      return { color: 'error', label: '异常' as const }
+    default:
+      return { color: 'default', label: '未映射' as const }
+  }
+}
+
+const getDrawingValidationAlertType = (status?: string | null): 'success' | 'info' | 'warning' | 'error' => {
+  switch (status) {
+    case 'VALID':
+      return 'success'
+    case 'WARNING':
+      return 'warning'
+    case 'ERROR':
+      return 'error'
+    default:
+      return 'info'
+  }
+}
 
 const transformToTreeData = (node: BOMNode, path = '0'): DataNode => ({
   title: (
@@ -189,6 +232,11 @@ const BOMStructure: React.FC = () => {
   const [editableItems, setEditableItems] = useState<EditableBOMItem[]>([])
   const [importLoading, setImportLoading] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
+  const [mappingVisible, setMappingVisible] = useState(false)
+  const [mappingTarget, setMappingTarget] = useState<BOMItem | null>(null)
+  const [mappingSearch, setMappingSearch] = useState('')
+  const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null)
+  const [mappingValidation, setMappingValidation] = useState<BOMItemDrawingValidation | null>(null)
 
   const [editorForm] = Form.useForm()
   const productCodeInEditor = Form.useWatch('product_code', editorForm)
@@ -224,6 +272,23 @@ const BOMStructure: React.FC = () => {
     enabled: !!selectedBOMId,
   })
 
+  const { data: linkedDrawings = [], isLoading: isLoadingDrawings } = useQuery({
+    queryKey: ['bomDrawings', selectedBOMId],
+    queryFn: () => drawingDocumentService.getDrawingsByBOM(selectedBOMId!),
+    enabled: !!selectedBOMId,
+  })
+
+  const { data: mappingCandidateDocuments = [], isLoading: isLoadingMappingCandidates } = useQuery({
+    queryKey: ['bomItemDrawingCandidates', selectedBOMId, mappingTarget?.id, mappingSearch],
+    queryFn: () =>
+      drawingDocumentService.listDocuments({
+        limit: 200,
+        search: mappingSearch || undefined,
+        material_code: mappingSearch ? undefined : mappingTarget?.child_item_code,
+      }),
+    enabled: !!selectedBOMId && !!mappingTarget?.id,
+  })
+
   const treeData = useMemo(() => (bomTree ? [transformToTreeData(bomTree)] : []), [bomTree])
 
   const refreshBOMQueries = async () => {
@@ -231,6 +296,8 @@ const BOMStructure: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['boms'] }),
       queryClient.invalidateQueries({ queryKey: ['bomDetail'] }),
       queryClient.invalidateQueries({ queryKey: ['bomTree'] }),
+      queryClient.invalidateQueries({ queryKey: ['bomDrawings'] }),
+      queryClient.invalidateQueries({ queryKey: ['drawingDocuments'] }),
     ])
   }
 
@@ -266,6 +333,19 @@ const BOMStructure: React.FC = () => {
     },
     onError: (error: any) => {
       message.error(error?.response?.data?.detail || error?.message || 'CAD 同步失败')
+    },
+  })
+
+  const saveDrawingMappingMutation = useMutation({
+    mutationFn: (payload: { bom_item_id: number; drawing_document_id?: number | null }[]) =>
+      plmService.saveBOMItemDrawingMappings(selectedBOMId!, payload),
+    onSuccess: async result => {
+      message.success(`已更新 ${result.updated} 条明细行图纸映射`)
+      closeDrawingMapping()
+      await refreshBOMQueries()
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.detail || error?.message || '图纸映射保存失败')
     },
   })
 
@@ -314,6 +394,7 @@ const BOMStructure: React.FC = () => {
 
     setEditableItems(
       detail.items.map(item => ({
+        id: item.id,
         localKey: String(item.id || generateRowKey()),
         parent_item_code: item.parent_item_code || detail.product_code,
         child_item_code: item.child_item_code,
@@ -331,6 +412,7 @@ const BOMStructure: React.FC = () => {
         unit_price: item.unit_price || 0,
         total_price: item.total_price || 0,
         source_reference: item.source_reference || '',
+        drawing_document_id: item.drawing_document_id,
       }))
     )
     setEditorVisible(true)
@@ -384,6 +466,102 @@ const BOMStructure: React.FC = () => {
     setEditableItems(current => current.filter(item => item.localKey !== localKey && !descendants.has(item.localKey)))
   }
 
+  const openDrawingMapping = (item: BOMItem) => {
+    setMappingTarget(item)
+    setSelectedDrawingId(item.drawing_document_id || null)
+    setMappingValidation(null)
+    setMappingSearch('')
+    setMappingVisible(true)
+  }
+
+  const closeDrawingMapping = () => {
+    setMappingVisible(false)
+    setMappingTarget(null)
+    setSelectedDrawingId(null)
+    setMappingValidation(null)
+    setMappingSearch('')
+  }
+
+  const validateDrawingMappingSelection = async (drawingDocumentId: number | null) => {
+    if (!selectedBOMId || !mappingTarget?.id) {
+      return
+    }
+    try {
+      const result = await plmService.validateBOMItemDrawingMappings(selectedBOMId, [
+        {
+          bom_item_id: mappingTarget.id,
+          drawing_document_id: drawingDocumentId,
+        },
+      ])
+      setMappingValidation(result.results[0] || null)
+    } catch (error: any) {
+      setMappingValidation(null)
+      message.error(error?.response?.data?.detail || error?.message || '图纸映射校验失败')
+    }
+  }
+
+  useEffect(() => {
+    if (!mappingVisible || !mappingTarget?.id || !selectedBOMId) {
+      return
+    }
+    void validateDrawingMappingSelection(selectedDrawingId)
+  }, [mappingVisible, mappingTarget?.id, selectedBOMId, selectedDrawingId])
+
+  const handleSaveDrawingMapping = async () => {
+    if (!selectedBOMId || !mappingTarget?.id) {
+      return
+    }
+
+    const payload = [
+      {
+        bom_item_id: mappingTarget.id,
+        drawing_document_id: selectedDrawingId,
+      },
+    ]
+
+    let validation = mappingValidation
+    if (!validation) {
+      try {
+        const result = await plmService.validateBOMItemDrawingMappings(selectedBOMId, payload)
+        validation = result.results[0] || null
+        setMappingValidation(validation)
+      } catch (error: any) {
+        message.error(error?.response?.data?.detail || error?.message || '图纸映射校验失败')
+        return
+      }
+    }
+
+    if (!validation) {
+      return
+    }
+    if (!validation.can_apply) {
+      message.error(validation.message || '当前图纸不能映射到该 BOM 明细行')
+      return
+    }
+
+    const commitSave = () => saveDrawingMappingMutation.mutate(payload)
+    if (validation.warnings.length > 0) {
+      Modal.confirm({
+        title: '检测到版本替换校验提示',
+        width: 640,
+        content: (
+          <div>
+            <div style={{ marginBottom: 12 }}>{validation.message}</div>
+            <ul style={{ paddingLeft: 20, marginBottom: 0 }}>
+              {validation.warnings.map(item => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+        onOk: commitSave,
+      })
+      return
+    }
+
+    commitSave()
+  }
+
   const handleSave = async () => {
     try {
       const values = await editorForm.validateFields()
@@ -391,6 +569,7 @@ const BOMStructure: React.FC = () => {
       const cleanItems = editableItems
         .filter(item => item.child_item_code.trim())
         .map(item => ({
+          id: item.id,
           parent_item_code: (item.parent_item_code || rootCode || '').trim() || rootCode,
           child_item_code: item.child_item_code.trim(),
           quantity: Number(item.quantity || 0),
@@ -404,6 +583,7 @@ const BOMStructure: React.FC = () => {
           unit_price: Number(item.unit_price || 0),
           total_price: Number(item.total_price || 0),
           source_reference: item.source_reference || undefined,
+          drawing_document_id: item.drawing_document_id ?? undefined,
           material_name: item.material_name || undefined,
           specification: item.specification || undefined,
           unit: item.unit || undefined,
@@ -518,6 +698,7 @@ ${result.error_details
       source_file: bomDetail.source_file || `SolidWorks/${bomDetail.product_code}.sldasm`,
       cad_document_no: bomDetail.cad_document_no || bomDetail.product_code,
       items: bomDetail.items.map(item => ({
+        id: item.id,
         parent_item_code: item.parent_item_code || bomDetail.product_code,
         child_item_code: item.child_item_code,
         quantity: item.quantity,
@@ -531,6 +712,7 @@ ${result.error_details
         unit_price: item.unit_price,
         total_price: item.total_price,
         source_reference: item.source_reference || undefined,
+        drawing_document_id: item.drawing_document_id ?? undefined,
         material_name: item.material?.name || undefined,
         specification: item.material?.specification || undefined,
         unit: item.material?.unit || undefined,
@@ -681,6 +863,145 @@ ${result.error_details
             删除
           </Button>
         </Space>
+      ),
+    },
+  ]
+
+  const drawingMappingColumns: ColumnsType<BOMItem> = [
+    {
+      title: '位号',
+      dataIndex: 'find_number',
+      width: 90,
+      render: value => value || '-',
+    },
+    {
+      title: '子项编码',
+      dataIndex: 'child_item_code',
+      width: 160,
+      render: value => <Text strong>{value}</Text>,
+    },
+    {
+      title: '物料名称',
+      key: 'material_name',
+      width: 220,
+      render: (_, row) => (
+        <Space direction="vertical" size={2}>
+          <Text>{row.material?.name || '-'}</Text>
+          <Text type="secondary">{row.material?.specification || '-'}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '物料图号',
+      key: 'material_drawing_no',
+      width: 150,
+      render: (_, row) => row.material?.drawing_no || '-',
+    },
+    {
+      title: '已映射图纸',
+      key: 'drawing_document',
+      width: 240,
+      render: (_, row) =>
+        row.drawing_document ? (
+          <Space direction="vertical" size={2}>
+            <Text strong>{row.drawing_document.document_number}</Text>
+            <Text type="secondary">{row.drawing_document.document_name}</Text>
+            <Text type="secondary">
+              {getDrawingVersionLabel(row.drawing_document.version, row.drawing_document.revision)}
+            </Text>
+          </Space>
+        ) : (
+          <Text type="secondary">未映射</Text>
+        ),
+    },
+    {
+      title: '映射状态',
+      key: 'drawing_mapping_status',
+      width: 120,
+      render: (_, row) => {
+        const meta = getDrawingMappingStatusMeta(row.drawing_mapping_status)
+        return <Tag color={meta.color}>{meta.label}</Tag>
+      },
+    },
+    {
+      title: '校验信息',
+      dataIndex: 'drawing_validation_message',
+      width: 260,
+      render: (value, row) => value || (row.drawing_document_id ? '已建立图纸映射' : '未建立图纸映射'),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      fixed: 'right',
+      render: (_, row) => (
+        <Button size="small" type="link" disabled={!row.id} onClick={() => openDrawingMapping(row)}>
+          映射图纸
+        </Button>
+      ),
+    },
+  ]
+
+  const mappingCandidateColumns: ColumnsType<DrawingDocument> = [
+    {
+      title: '选择',
+      key: 'select',
+      width: 70,
+      render: (_, row) => (
+        <Radio checked={selectedDrawingId === row.id} onChange={() => setSelectedDrawingId(row.id)} />
+      ),
+    },
+    {
+      title: '图号',
+      dataIndex: 'document_number',
+      width: 180,
+      render: value => <Text strong>{value}</Text>,
+    },
+    {
+      title: '名称',
+      dataIndex: 'document_name',
+      width: 220,
+    },
+    {
+      title: '版本',
+      key: 'version',
+      width: 150,
+      render: (_, row) => getDrawingVersionLabel(row.version, row.revision),
+    },
+    {
+      title: '关联物料',
+      dataIndex: 'material_code',
+      width: 140,
+      render: value => value || '-',
+    },
+    {
+      title: '来源目录',
+      dataIndex: 'source_relative_path',
+      width: 280,
+      ellipsis: true,
+      render: value => value || '-',
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 140,
+      render: (_, row) => (
+        <Space size={4} wrap>
+          <Tag>{row.document_type}</Tag>
+          <Tag color={row.status === 'RELEASED' ? 'green' : row.status === 'ARCHIVED' ? 'red' : 'gold'}>
+            {row.status}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'download',
+      width: 90,
+      render: (_, row) => (
+        <Button size="small" type="link" onClick={() => drawingDocumentService.downloadDocument(row)}>
+          下载
+        </Button>
       ),
     },
   ]
@@ -876,6 +1197,82 @@ ${result.error_details
                     }
                   />
 
+                  <Card
+                    size="small"
+                    title="关联图纸资料"
+                    extra={
+                      selectedBOMId ? (
+                        <Button size="small" onClick={() => (window.location.href = `/manufacturing/drawings?bom_id=${selectedBOMId}`)}>
+                          打开资料库
+                        </Button>
+                      ) : null
+                    }
+                  >
+                    <Space wrap style={{ marginBottom: 12 }}>
+                      <Statistic title="关联图纸数" value={linkedDrawings.length} />
+                    </Space>
+                    <List
+                      loading={isLoadingDrawings}
+                      dataSource={linkedDrawings.slice(0, 6)}
+                      locale={{ emptyText: <Empty description="当前 BOM 暂无关联图纸" /> }}
+                      renderItem={(drawing: DrawingDocument) => (
+                        <List.Item
+                          actions={[
+                            <Button
+                              key="download"
+                              size="small"
+                              icon={<DownloadOutlined />}
+                              onClick={() => drawingDocumentService.downloadDocument(drawing)}
+                            >
+                              下载
+                            </Button>,
+                          ]}
+                        >
+                          <List.Item.Meta
+                            title={
+                              <Space wrap>
+                                <Text strong>{drawing.document_number}</Text>
+                                <Tag color="blue">{drawing.document_type}</Tag>
+                                {drawing.revision ? <Tag>{drawing.revision}</Tag> : null}
+                              </Space>
+                            }
+                            description={
+                              <Space direction="vertical" size={2}>
+                                <Text>{drawing.document_name}</Text>
+                                <Text type="secondary">
+                                  物料 {drawing.material_code || '-'} / 产品 {drawing.product_code || '-'}
+                                </Text>
+                              </Space>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  </Card>
+
+                  <Card
+                    size="small"
+                    title="BOM 明细行图纸映射"
+                    extra={
+                      <Space size={16}>
+                        <Text type="secondary">已映射 {bomDetail?.items.filter(item => !!item.drawing_document_id).length || 0} 条</Text>
+                        <Text type="secondary">
+                          未映射 {(bomDetail?.items.length || 0) - (bomDetail?.items.filter(item => !!item.drawing_document_id).length || 0)} 条
+                        </Text>
+                      </Space>
+                    }
+                  >
+                    <Table
+                      rowKey={row => String(row.id || `${row.child_item_code}-${row.find_number || row.item_level}`)}
+                      size="small"
+                      columns={drawingMappingColumns}
+                      dataSource={bomDetail?.items || []}
+                      pagination={{ pageSize: 8, hideOnSinglePage: true }}
+                      scroll={{ x: 1350 }}
+                      locale={{ emptyText: <Empty description="当前 BOM 暂无明细行" /> }}
+                    />
+                  </Card>
+
                   <Card size="small" title="BOM 层级结构">
                     <Tree
                       showIcon
@@ -979,6 +1376,110 @@ ${result.error_details
             expandable={{ defaultExpandAllRows: true }}
           />
         </Card>
+      </Modal>
+
+      <Modal
+        title="BOM 明细行图纸映射"
+        open={mappingVisible}
+        onCancel={closeDrawingMapping}
+        onOk={handleSaveDrawingMapping}
+        okText={selectedDrawingId ? '保存映射' : '清空映射'}
+        confirmLoading={saveDrawingMappingMutation.isPending}
+        width={1180}
+        destroyOnClose
+      >
+        {mappingTarget ? (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Card size="small">
+              <Descriptions size="small" column={2}>
+                <Descriptions.Item label="BOM 明细行">
+                  {mappingTarget.find_number || '-'} / {mappingTarget.child_item_code}
+                </Descriptions.Item>
+                <Descriptions.Item label="物料名称">{mappingTarget.material?.name || '-'}</Descriptions.Item>
+                <Descriptions.Item label="物料图号">{mappingTarget.material?.drawing_no || '-'}</Descriptions.Item>
+                <Descriptions.Item label="当前映射">
+                  {mappingTarget.drawing_document
+                    ? `${mappingTarget.drawing_document.document_number} (${getDrawingVersionLabel(
+                        mappingTarget.drawing_document.version,
+                        mappingTarget.drawing_document.revision
+                      )})`
+                    : '未映射'}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Input
+                allowClear
+                value={mappingSearch}
+                onChange={event => setMappingSearch(event.target.value)}
+                placeholder="按图号、名称或目录搜索候选图纸"
+                style={{ width: 360 }}
+              />
+              <Radio checked={selectedDrawingId === null} onChange={() => setSelectedDrawingId(null)}>
+                清空当前映射
+              </Radio>
+            </Space>
+
+            {mappingValidation ? (
+              <Alert
+                showIcon
+                type={getDrawingValidationAlertType(mappingValidation.validation_status)}
+                message={mappingValidation.message}
+                description={
+                  <Space direction="vertical" size={4}>
+                    {mappingValidation.current_document ? (
+                      <Text type="secondary">
+                        当前图纸: {mappingValidation.current_document.document_number} /{' '}
+                        {getDrawingVersionLabel(
+                          mappingValidation.current_document.version,
+                          mappingValidation.current_document.revision
+                        )}
+                      </Text>
+                    ) : null}
+                    {mappingValidation.candidate_document ? (
+                      <Text type="secondary">
+                        候选图纸: {mappingValidation.candidate_document.document_number} /{' '}
+                        {getDrawingVersionLabel(
+                          mappingValidation.candidate_document.version,
+                          mappingValidation.candidate_document.revision
+                        )}
+                      </Text>
+                    ) : null}
+                    {mappingValidation.warnings.length > 0 ? (
+                      <Text type="warning">提示: {mappingValidation.warnings.join('；')}</Text>
+                    ) : null}
+                    {mappingValidation.errors.length > 0 ? (
+                      <Text type="danger">错误: {mappingValidation.errors.join('；')}</Text>
+                    ) : null}
+                  </Space>
+                }
+              />
+            ) : null}
+
+            <Table
+              rowKey="id"
+              size="small"
+              loading={isLoadingMappingCandidates}
+              columns={mappingCandidateColumns}
+              dataSource={mappingCandidateDocuments}
+              pagination={{ pageSize: 8, hideOnSinglePage: true }}
+              scroll={{ x: 1350, y: 420 }}
+              locale={{
+                emptyText: (
+                  <Empty
+                    description={
+                      mappingSearch ? '未找到匹配图纸，请调整搜索条件' : '未找到候选图纸，请先批量导入或手工上传图纸'
+                    }
+                  />
+                ),
+              }}
+              onRow={record => ({
+                onClick: () => setSelectedDrawingId(record.id),
+              })}
+            />
+          </Space>
+        ) : null}
       </Modal>
     </div>
   )

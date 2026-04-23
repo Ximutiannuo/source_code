@@ -16,7 +16,7 @@ class SystemTaskService:
 
     避让原则：当以下任一任务锁为活跃时，后台汇总刷新（DataRefreshService）会主动跳过，避免锁冲突。
     - daily_report_upload：日报上传（日报管理导入保存）
-    - welding_sync / mdr_sync / activity_summary_sync：焊接/MDR/汇总同步
+    - mdr_sync / activity_summary_sync：MDR/汇总同步
     - mpdb_delete：删除人力日报（单条/批量删除时每次 DELETE 请求持锁）
     - vfactdb_delete：删除完成量（准确）- 单条/批量删除（每次 DELETE 请求持锁）
     - vfactdb_batch_adjust：调整完成量（覆写）- 批量调整/Excel 导入
@@ -119,7 +119,7 @@ class SystemTaskService:
     def is_task_active(task_name: str) -> bool:
         """
         检查指定任务是否正在运行（未超时视为活跃）。
-        用于互斥：如焊接同步前检查日报上传、日报上传前检查焊接同步。
+        用于互斥：如后台同步前检查日报上传，或日报上传前检查后台同步。
         """
         db = SessionLocal()
         try:

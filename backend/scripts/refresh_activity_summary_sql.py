@@ -217,7 +217,7 @@ def refresh_activity_summary_sql(is_clear_mode: bool = False):
     
     # 避让原则：如果检测到用户正在操作，则直接跳过本次同步
     if SystemTaskService.is_any_high_priority_task_active(exclude_tasks=["background_refresh"]):
-        print("\n[避让] 检测到用户正在上传日报或同步焊接数据，后台同步主动放弃，等待下次周期...")
+        print("\n[避让] 检测到用户正在上传日报或执行其他高优先级任务，后台同步主动放弃，等待下次周期...")
         return {'success': True, 'row_count': 0, 'skipped': True}
 
     db = SessionLocal()

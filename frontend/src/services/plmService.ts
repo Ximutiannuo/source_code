@@ -55,6 +55,20 @@ export interface BOMItem {
   unit_price: number
   total_price: number
   source_reference?: string | null
+  drawing_document_id?: number | null
+  drawing_mapping_status?: string | null
+  drawing_validation_message?: string | null
+  drawing_document?: {
+    id: number
+    document_number: string
+    document_name: string
+    document_type: string
+    status: string
+    version?: string | null
+    revision?: string | null
+    material_code?: string | null
+    product_code?: string | null
+  } | null
   material?: Material | null
 }
 
@@ -118,12 +132,36 @@ export interface BOMSavePayload {
     unit_price?: number
     total_price?: number | null
     source_reference?: string
+    drawing_document_id?: number | null
     material_name?: string
     specification?: string
     unit?: string
     drawing_no?: string
     revision?: string
   }>
+}
+
+export interface BOMItemDrawingMappingPayload {
+  bom_item_id: number
+  drawing_document_id?: number | null
+}
+
+export interface BOMItemDrawingValidation {
+  bom_item_id: number
+  child_item_code?: string | null
+  find_number?: string | null
+  validation_status: string
+  can_apply: boolean
+  message: string
+  warnings: string[]
+  errors: string[]
+  current_document?: BOMItem['drawing_document'] | null
+  candidate_document?: BOMItem['drawing_document'] | null
+}
+
+export interface BOMItemDrawingMappingResult {
+  updated: number
+  results: BOMItemDrawingValidation[]
 }
 
 export interface BOMImportResult {
@@ -175,6 +213,16 @@ export const plmService = {
 
   updateBOM: async (bomId: number, data: BOMSavePayload) => {
     const response = await api.patch<BOMDetail>(`/plm/boms/${bomId}`, data)
+    return response.data
+  },
+
+  validateBOMItemDrawingMappings: async (bomId: number, data: BOMItemDrawingMappingPayload[]) => {
+    const response = await api.post<BOMItemDrawingMappingResult>(`/plm/boms/${bomId}/item-drawing-mappings/validate`, data)
+    return response.data
+  },
+
+  saveBOMItemDrawingMappings: async (bomId: number, data: BOMItemDrawingMappingPayload[]) => {
+    const response = await api.put<BOMItemDrawingMappingResult>(`/plm/boms/${bomId}/item-drawing-mappings`, data)
     return response.data
   },
 

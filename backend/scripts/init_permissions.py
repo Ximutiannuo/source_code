@@ -83,14 +83,6 @@ DEFAULT_PERMISSIONS = [
     {"code": "facility:update", "name": "主项清单管理 - 更新", "description": "更新主项清单信息", "resource_type": "facility", "action": "update"},
     {"code": "facility:delete", "name": "主项清单管理 - 删除", "description": "删除主项清单", "resource_type": "facility", "action": "delete"},
     
-    # 焊接数据管理权限
-    {"code": "welding_data:read", "name": "焊接数据管理 - 查看", "description": "查看焊接数据统计和同步结果", "resource_type": "welding_data", "action": "read"},
-    {"code": "welding_data:config:read", "name": "焊接数据配置 - 查看", "description": "查看焊接数据配置（Marka代码、非标准图纸、ConstContractor映射）", "resource_type": "welding_data", "action": "config:read"},
-    {"code": "welding_data:config:create", "name": "焊接数据配置 - 创建", "description": "创建焊接数据配置", "resource_type": "welding_data", "action": "config:create"},
-    {"code": "welding_data:config:update", "name": "焊接数据配置 - 更新", "description": "更新焊接数据配置", "resource_type": "welding_data", "action": "config:update"},
-    {"code": "welding_data:config:delete", "name": "焊接数据配置 - 删除", "description": "删除焊接数据配置", "resource_type": "welding_data", "action": "config:delete"},
-    {"code": "welding_data:sync", "name": "焊接数据 - 同步", "description": "启动焊接数据同步（从WeldingList同步到VFACTDB）", "resource_type": "welding_data", "action": "sync"},
-
     # 验收日报（InspectionDB）权限
     {"code": "inspection_db:read", "name": "验收日报 - 查看", "description": "查看验收日报（RFI/验收记录）列表与详情", "resource_type": "inspection_db", "action": "read"},
     {"code": "inspection_db:create", "name": "验收日报 - 创建", "description": "创建验收日报记录", "resource_type": "inspection_db", "action": "create"},

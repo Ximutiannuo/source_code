@@ -9,10 +9,10 @@ import tempfile
 import time
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from app.database import SessionLocal
 from app.p6_sync.services.delete_detection_service import DeleteDetectionService
 from app.p6_sync.services.raw_data_sync_direct import sync_all_p6_entities
 from app.p6_sync.services.task_coordinator import TaskCoordinator
@@ -280,153 +280,11 @@ def start_scheduler(project_ids: list = None):
     )
     logger.info("  - MDR同步: 每周四 22:00 执行")
 
-    # 添加焊接数据自动同步任务：每天中午 12:00 执行
-    from app.services.welding_sync_service import WeldingSyncService
-    from app.services.system_task_service import SystemTaskService
-    from app.database import SessionLocal
-    from app.models.welding_sync_log import WeldingSyncLog
-    from app.utils.timezone import now as system_now
-    from datetime import timedelta, datetime
-    from apscheduler.triggers.date import DateTrigger
-
-    def welding_sync_job():
-        """定时焊接数据同步任务。带自动避让、重试及日志记录逻辑。"""
-        logger.info("[调度器] 开始执行每天 12:00 焊接数据同步任务...")
-        
-        db = SessionLocal()
-        sync_log = None
-        try:
-            # 1. 检查避让逻辑
-            if SystemTaskService.is_task_active("daily_report_upload"):
-                logger.warning("[调度器] 检测到用户正在上传日报，避让本次焊接同步，将在 5 分钟后重试")
-                # 记录一个跳过的日志，方便前端查看
-                skip_log = WeldingSyncLog(
-                    sync_type='all',
-                    status='failed',
-                    message='[避让] 检测到用户正在上传日报，本次同步已跳过，5 分钟后将自动重试。',
-                    completed_at=system_now()
-                )
-                db.add(skip_log)
-                db.commit()
-                
-                # 5 分钟后重试
-                retry_time = datetime.now() + timedelta(minutes=5)
-                scheduler.add_job(
-                    welding_sync_job,
-                    trigger=DateTrigger(run_date=retry_time),
-                    id=f'welding_sync_retry_{int(time.time())}',
-                    name='焊接同步重试'
-                )
-                return
-
-            # 2. 创建同步日志
-            sync_log = WeldingSyncLog(
-                sync_type='all',
-                status='running',
-                message='[定时任务] 同步任务已启动'
-            )
-            db.add(sync_log)
-            db.commit()
-            db.refresh(sync_log)
-
-            # 3. 执行同步
-            service = WeldingSyncService(db=db)
-            
-            def progress_callback(progress: Optional[int], message: str):
-                if sync_log:
-                    try:
-                        sync_log.message = f"[{progress}%] {message}" if progress is not None else message
-                        if progress is not None:
-                            sync_log.progress = progress
-                        db.flush()
-                        db.commit()
-                    except Exception as e:
-                        logger.debug(f"更新同步进度失败: {e}")
-
-            result = service.sync_pi04_pi05_from_welding_list(
-                db=db,
-                progress_callback=progress_callback
-            )
-            
-            # 4. 如果同步成功，执行汇总刷新（确保完成量在汇总表生效）
-            if result.get("success"):
-                logger.info(f"[调度器] 焊接同步成功，开始刷新 PI04/PI05 汇总数据...")
-                from app.models.activity_summary import ActivitySummary
-                from app.services.activity_sync_service import ActivitySyncService
-                
-                # 获取所有 PI04/PI05 作业进行汇总刷新
-                ids_in_summary = db.query(ActivitySummary.activity_id).filter(
-                    ActivitySummary.work_package.in_(['PI04', 'PI05'])
-                ).all()
-                affected_ids = [r[0] for r in ids_in_summary if r[0]]
-                
-                if affected_ids:
-                    SystemTaskService.set_task_lock("activity_summary_sync", True, updated_by="scheduler_welding")
-                    try:
-                        ActivitySyncService.batch_sync_activity_summary_from_vcq(db, affected_ids)
-                    finally:
-                        SystemTaskService.set_task_lock("activity_summary_sync", False)
-                
-                # 更新最终日志
-                sync_log.status = 'success'
-                sync_log.message = result.get('message', '同步成功')
-            else:
-                # 如果是因为内部避让（虽然前面检查过了，但 service 内部也有检查）
-                if result.get("skipped"):
-                    sync_log.status = 'failed'
-                    sync_log.message = f"[避让] {result.get('message')}"
-                    # 同样在 5 分钟后重试
-                    retry_time = datetime.now() + timedelta(minutes=5)
-                    scheduler.add_job(
-                        welding_sync_job,
-                        trigger=DateTrigger(run_date=retry_time),
-                        id=f'welding_sync_retry_{int(time.time())}',
-                        name='焊接同步重试'
-                    )
-                else:
-                    sync_log.status = 'failed'
-                    sync_log.message = result.get('message', '同步失败')
-
-            # 填充统计字段
-            sync_log.deleted_count = result.get('deleted_count', 0)
-            sync_log.inserted_count = result.get('inserted_count', 0)
-            statistics = result.get('statistics', {})
-            if statistics:
-                sync_log.welding_list_total = statistics.get('welding_list_total', 0.0)
-                sync_log.welding_list_completed = statistics.get('welding_list_completed', 0.0)
-                sync_log.vfactdb_matched = statistics.get('vfactdb_matched', 0.0)
-            
-            sync_log.completed_at = system_now()
-            db.commit()
-            logger.info(f"[调度器] 焊接数据同步任务结束: {sync_log.status}")
-
-        except Exception as e:
-            logger.error(f"[调度器] 焊接数据同步异常: {e}", exc_info=True)
-            if sync_log:
-                try:
-                    sync_log.status = 'failed'
-                    sync_log.message = f"异常失败: {str(e)}"
-                    sync_log.completed_at = system_now()
-                    db.commit()
-                except:
-                    pass
-        finally:
-            db.close()
-
-    scheduler.add_job(
-        welding_sync_job,
-        trigger=CronTrigger(hour=12, minute=0),
-        id='welding_sync',
-        name='每天焊接数据同步',
-        replace_existing=True
-    )
-    logger.info("  - 焊接同步: 每天 12:00 执行")
-
     # S 曲线缓存全量刷新：每天 12:30、16:30 各执行一次（耗时约半小时，与其它任务无表冲突，独立线程执行）
     from app.services.dashboard_service import DashboardService
 
     def s_curve_cache_refresh_job():
-        """定时 S 曲线缓存全量刷新。仅读写 dashboard_s_curve_cache / activity_summary 等，与增量同步、删除检测、焊接等无表冲突。"""
+        """定时 S 曲线缓存全量刷新。仅读写 dashboard_s_curve_cache / activity_summary 等，与增量同步、删除检测等无表冲突。"""
         logger.info("[调度器] 开始执行 S 曲线缓存全量刷新（约半小时）...")
         db = SessionLocal()
         try:

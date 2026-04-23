@@ -94,6 +94,21 @@ class BOMHeaderRead(BaseModel):
     material: Optional[MaterialRead] = None
 
 
+class DrawingDocumentLinkRead(BaseModel):
+    id: int
+    document_number: str
+    document_name: str
+    document_type: str
+    status: str
+    version: Optional[str] = None
+    revision: Optional[str] = None
+    material_code: Optional[str] = None
+    product_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class BOMItemRead(BaseModel):
     id: Optional[int] = None
     parent_item_code: Optional[str] = None
@@ -109,6 +124,10 @@ class BOMItemRead(BaseModel):
     unit_price: float = 0
     total_price: float = 0
     source_reference: Optional[str] = None
+    drawing_document_id: Optional[int] = None
+    drawing_mapping_status: Optional[str] = None
+    drawing_validation_message: Optional[str] = None
+    drawing_document: Optional[DrawingDocumentLinkRead] = None
     material: Optional[MaterialRead] = None
 
 
@@ -143,6 +162,7 @@ class BOMNodeRead(BaseModel):
 
 
 class BOMItemUpsert(BaseModel):
+    id: Optional[int] = None
     parent_item_code: Optional[str] = None
     child_item_code: str
     quantity: float = Field(default=1, ge=0)
@@ -156,11 +176,35 @@ class BOMItemUpsert(BaseModel):
     unit_price: Optional[float] = Field(default=0, ge=0)
     total_price: Optional[float] = Field(default=None, ge=0)
     source_reference: Optional[str] = None
+    drawing_document_id: Optional[int] = None
     material_name: Optional[str] = None
     specification: Optional[str] = None
     unit: Optional[str] = None
     drawing_no: Optional[str] = None
     revision: Optional[str] = None
+
+
+class BOMItemDrawingMappingUpsert(BaseModel):
+    bom_item_id: int
+    drawing_document_id: Optional[int] = None
+
+
+class BOMItemDrawingValidationRead(BaseModel):
+    bom_item_id: int
+    child_item_code: Optional[str] = None
+    find_number: Optional[str] = None
+    validation_status: str
+    can_apply: bool
+    message: str
+    warnings: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+    current_document: Optional[DrawingDocumentLinkRead] = None
+    candidate_document: Optional[DrawingDocumentLinkRead] = None
+
+
+class BOMItemDrawingMappingResultRead(BaseModel):
+    updated: int
+    results: List[BOMItemDrawingValidationRead]
 
 
 class BOMUpsert(BaseModel):
@@ -496,6 +540,34 @@ async def update_bom_items(
     if not result:
         raise HTTPException(status_code=404, detail="BOM not found")
     return result
+
+
+@router.post("/boms/{bom_id}/item-drawing-mappings/validate", response_model=BOMItemDrawingMappingResultRead)
+async def validate_bom_item_drawing_mappings(
+    bom_id: int,
+    mappings: List[BOMItemDrawingMappingUpsert],
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    return PLMService.validate_bom_item_drawing_mappings(
+        db,
+        bom_id,
+        [_payload_to_dict(mapping) for mapping in mappings],
+    )
+
+
+@router.put("/boms/{bom_id}/item-drawing-mappings", response_model=BOMItemDrawingMappingResultRead)
+async def save_bom_item_drawing_mappings(
+    bom_id: int,
+    mappings: List[BOMItemDrawingMappingUpsert],
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    return PLMService.apply_bom_item_drawing_mappings(
+        db,
+        bom_id,
+        [_payload_to_dict(mapping) for mapping in mappings],
+    )
 
 
 @router.get("/boms/{bom_id}/expand", response_model=BOMNodeRead)

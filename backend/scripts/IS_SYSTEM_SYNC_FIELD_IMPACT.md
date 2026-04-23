@@ -134,7 +134,5 @@
 - 模型定义: `backend/app/models/report.py`
 - API接口: `backend/app/api/reports.py`
 - 导入功能: `backend/app/api/import_api.py`
-- 同步服务: `backend/app/services/welding_sync_service.py`
 - 迁移脚本: `backend/scripts/add_vfactdb_is_system_sync_field.py`
-- 说明文档: `backend/scripts/WELDING_SYNC_DATA_SOURCE.md`
 

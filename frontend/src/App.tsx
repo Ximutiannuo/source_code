@@ -7,6 +7,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import AccountManagement from './pages/AccountManagement'
 import BOMStructure from './pages/BOMStructure'
 import DepartmentManagement from './pages/DepartmentManagement'
+import DrawingLibrary from './pages/DrawingLibrary'
 import EquipmentDashboard from './pages/EquipmentDashboard'
 import FacilityManagement from './pages/FacilityManagement'
 import HelpPage from './pages/HelpPage'
@@ -14,14 +15,11 @@ import Login from './pages/Login'
 import ManufacturingCockpit from './pages/ManufacturingCockpit'
 import ManufacturingOrderManagement from './pages/ManufacturingOrderManagement'
 import MaterialManagement from './pages/MaterialManagement'
-import MDRDesignManagement from './pages/MDRDesignManagement'
-import OcrRecognition from './pages/OcrRecognition'
 import ProcessTemplateConfig from './pages/ProcessTemplateConfig'
 import ProcurementManagement from './pages/ProcurementManagement'
 import Profile from './pages/Profile'
 import QualityManagement from './pages/QualityManagement'
 import SystemAdminPage from './pages/SystemAdminPage'
-import WeldingDataManagement from './pages/WeldingDataManagement'
 
 function App() {
   return (
@@ -52,10 +50,10 @@ function App() {
                       <Route path="/manufacturing/quality" element={<QualityManagement />} />
                       <Route path="/manufacturing/equipment" element={<EquipmentDashboard />} />
                       <Route path="/manufacturing/facilities" element={<FacilityManagement />} />
+                      <Route path="/manufacturing/drawings" element={<DrawingLibrary />} />
                       <Route path="/facility-management" element={<Navigate to="/manufacturing/facilities" replace />} />
-                      <Route path="/external-data/welding" element={<WeldingDataManagement />} />
-                      <Route path="/external-data/mdr" element={<MDRDesignManagement />} />
-                      <Route path="/tools/ocr" element={<OcrRecognition />} />
+                      <Route path="/external-data/mdr" element={<Navigate to="/manufacturing/drawings" replace />} />
+                      <Route path="/tools/ocr" element={<Navigate to="/manufacturing/drawings" replace />} />
                       <Route path="/account-management" element={<AccountManagement />} />
                       <Route path="/department-management" element={<DepartmentManagement />} />
                       <Route path="/system-admin" element={<SystemAdminPage />} />

@@ -73,7 +73,6 @@
 | `import_p6_spreadsheet.py` | 从 P6 表格导入 |
 | `import_itp_word.py` | 从 Word 导入 ITP |
 | `import_worksteps.py` | 导入工作步骤 |
-| `import_welding_list_index.py` | 焊接清单索引导入 |
 
 ### ✅ 8. 其他运维/部署
 
@@ -96,7 +95,7 @@
 ### ✅ 9. 迁移与一次性结构变更（保留作历史）
 
 - 所有 **`migrate_*.py`**：数据库结构/权限等迁移，已执行仍保留参考。
-- **`add_*_migration*.py`** / **`add_*.py`**（如 `add_p6_date_fields_migration.py`、`add_vfactdb_is_system_sync_field.py`、`add_welding_sync_log_*.py` 等）：一次性加字段/表，可按需归档。
+- **`add_*_migration*.py`** / **`add_*.py`**（如 `add_p6_date_fields_migration.py`、`add_vfactdb_is_system_sync_field.py` 等）：一次性加字段/表，可按需归档。
 - 配套 **`.sql`**（如 `migrate_vfactdb_achieved_precision.sql`、`add_p6_date_fields_migration.sql`、`enable_load_data_infile.sql`、`fix_indexes.sql` 等）：与上述迁移或运维配套，保留或与对应 .py 一起归档。
 
 ### ⚠️ 10. 废弃/危险（保留但慎用）
@@ -130,7 +129,6 @@
 | **`test_p6_api_filter.py`** | P6 API 过滤测试 |
 | **`test_update_single_file.py`** | 单文件更新测试 |
 | **`test_vault_connection.py`** | Vault 连接测试 |
-| **`test_welding_sync.py`** | 焊接同步测试 |
 
 ### 4. 一次性检查/报告（若相关迁移已完成可删）
 

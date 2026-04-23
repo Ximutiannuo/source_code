@@ -44,19 +44,6 @@ export const RESOURCE_TYPE_CONFIG: Record<string, ResourceTypeConfig> = {
       { value: 'delete', label: '删除', color: 'red' },
     ],
   },
-  welding_data: {
-    label: '焊接工艺接口',
-    description: '焊接工艺、焊缝台账、外部系统接口与同步配置管理。',
-    category: '制造协同',
-    actions: [
-      { value: 'read', label: '查看', color: 'blue' },
-      { value: 'config:read', label: '配置查看', color: 'cyan' },
-      { value: 'config:create', label: '配置新增', color: 'green' },
-      { value: 'config:update', label: '配置维护', color: 'orange' },
-      { value: 'config:delete', label: '配置删除', color: 'red' },
-      { value: 'sync', label: '执行同步', color: 'purple' },
-    ],
-  },
   user: {
     label: '账号主数据',
     description: '平台账号、组织归属、岗位职责与启停状态管理。',
@@ -232,7 +219,7 @@ export const MANUFACTURING_ROLE_TEMPLATES: ManufacturingRoleTemplate[] = [
     presetDescription:
       '负责非标设备方案设计、图纸输出、EBOM 管理、设计资料归档以及 ECN 变更协同。',
     responsibilities: ['图纸管理', 'EBOM', '设计变更', '资料归档'],
-    suggestedModules: ['焊接工艺接口'],
+    suggestedModules: ['图纸资料库'],
     keywords: ['设计', '研发', '图纸', '研发工程师', '结构'],
   },
   {
@@ -244,7 +231,7 @@ export const MANUFACTURING_ROLE_TEMPLATES: ManufacturingRoleTemplate[] = [
     presetDescription:
       '负责 EBOM 转 PBOM、工艺路线编制、工时定额维护、工装夹具需求与关键工序控制。',
     responsibilities: ['PBOM', '工艺路线', '工时定额', '工装需求'],
-    suggestedModules: ['设备与工装台账', '焊接工艺接口'],
+    suggestedModules: ['设备与工装台账', '图纸资料库'],
     keywords: ['工艺', '制造工程', '工艺工程师', 'PBOM', '定额'],
   },
   {
@@ -304,7 +291,7 @@ export const MANUFACTURING_ROLE_TEMPLATES: ManufacturingRoleTemplate[] = [
     presetDescription:
       '负责来料、过程、完工质量控制，建立可追溯质量记录，推动 NCR/8D 闭环和放行管理。',
     responsibilities: ['IQC/IPQC/FQC', '质量追溯', 'NCR/8D', '放行管理'],
-    suggestedModules: ['焊接工艺接口', '遗留验收记录'],
+    suggestedModules: ['质量管理', '图纸资料库'],
     keywords: ['质量', '检验', 'IQC', 'IPQC', 'FQC', 'QE', 'QA'],
   },
   {

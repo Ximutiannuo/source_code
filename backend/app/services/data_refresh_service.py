@@ -201,7 +201,7 @@ class DataRefreshService:
 
             # 2. 批量更新 volume_control_quantity (从 VFACTDB 汇总)
             # 2a. 先按 batch 内所有 activity_id 用 LEFT JOIN 汇总更新（含“原先有 VFACTDB、后来没有”的归零）
-            #     这样 welding_sync 删除全部 VFACTDB 后，construction_completed 会正确变为 0
+            #     这样在清空全部 VFACTDB 后，construction_completed 会正确变为 0
             db.execute(text("""
                 UPDATE volume_control_quantity vq
                 LEFT JOIN (
