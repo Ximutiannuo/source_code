@@ -22,7 +22,7 @@ const getDocPath = (key: string) => {
     'guide/manufacturing/architecture': '../docs/guide/manufacturing/architecture.md',
     'guide/manufacturing/mainline': '../docs/guide/manufacturing/mainline.md',
     'guide/manufacturing/excel-exchange': '../docs/guide/manufacturing/excel-exchange.md',
-    'guide/tools/ai-ocr': '../docs/guide/tools/ai-ocr.md',
+    'guide/tools/cad-sync': '../docs/guide/tools/cad-sync.md',
   }
   return map[key] ?? null
 }
@@ -83,8 +83,8 @@ const HelpPage = ({ initialDocKey }: HelpPageProps) => {
             title: '辅助工具',
             children: [
               {
-                key: 'guide/tools/ai-ocr',
-                title: '图纸 OCR',
+                key: 'guide/tools/cad-sync',
+                title: 'CAD 自动同步',
                 isLeaf: true,
               },
             ],

@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from app.models.user import User, Permission, UserPermission, RolePermission, Role, user_role_table
-from app.models.facility import Facility
 
 
 class PermissionScope:
@@ -251,109 +250,26 @@ class PermissionService:
     
     @staticmethod
     def _check_subproject_hierarchy(db: Session, allowed_subproject: str, scope: PermissionScope) -> bool:
-        """
-        检查subproject层级关系
-        如果权限有subproject，数据可以是：
-        1. 相同的subproject
-        2. 属于该subproject的facility_id
-        3. 属于该subproject的block
-        """
-        # 如果数据有subproject，直接比较
         if scope.subproject:
             return scope.subproject == allowed_subproject
-        
-        # 如果数据有facility_id，检查facility是否属于该subproject
-        if scope.facility_id:
-            facility = db.query(Facility).filter(Facility.id == scope.facility_id).first()
-            if facility and facility.subproject == allowed_subproject:
-                return True
-        
-        # 如果数据有block，检查block是否属于该subproject
-        if scope.block:
-            facility = db.query(Facility).filter(Facility.block == scope.block).first()
-            if facility and facility.subproject == allowed_subproject:
-                return True
-        
         return False
     
     @staticmethod
     def _check_facility_hierarchy(db: Session, allowed_facility_id: int, scope: PermissionScope) -> bool:
-        """
-        检查facility层级关系
-        如果权限有facility_id，数据可以是：
-        1. 相同的facility_id
-        2. 属于该facility的block
-        """
-        # 如果数据有facility_id，直接比较
         if scope.facility_id:
             return scope.facility_id == allowed_facility_id
-        
-        # 如果数据有block，检查block是否属于该facility
-        if scope.block:
-            facility = db.query(Facility).filter(Facility.id == allowed_facility_id).first()
-            if facility and facility.block == scope.block:
-                return True
-        
         return False
     
     @staticmethod
     def _check_work_package_match(db: Session, allowed_work_package: str, scope: PermissionScope) -> bool:
-        """
-        检查work_package匹配（支持通过rsc_defines映射到resource_id）
-        
-        如果权限有work_package，数据可以是：
-        1. 相同的work_package
-        2. 属于该work_package的resource_id（通过rsc_defines表查找）
-        
-        注意：work_package是resource_id的最小单元，类似于block是facility_id的最小单元
-        """
-        from app.models.rsc import RSCDefine
-        
-        # 如果数据有work_package，直接比较
         if scope.work_package:
             return scope.work_package == allowed_work_package
-        
-        # 如果数据有resource_id，检查resource_id是否属于该work_package
-        # 通过rsc_defines表查找：该work_package对应的resource_id是否匹配
-        if scope.resource_id:
-            rsc_define = db.query(RSCDefine).filter(
-                RSCDefine.work_package == allowed_work_package,
-                RSCDefine.resource_id == scope.resource_id,
-                RSCDefine.is_active == True
-            ).first()
-            if rsc_define:
-                return True
-        
         return False
     
     @staticmethod
     def _check_resource_id_match(db: Session, allowed_resource_id: str, scope: PermissionScope) -> bool:
-        """
-        检查resource_id匹配（支持通过rsc_defines映射到work_package）
-        
-        如果权限有resource_id（UserPermission），数据可以是：
-        1. 相同的resource_id
-        2. 属于该resource_id的work_package（通过rsc_defines表查找）
-        
-        注意：work_package是resource_id的最小单元
-        """
-        from app.models.rsc import RSCDefine
-        
-        # 如果数据有resource_id，直接比较
         if scope.resource_id:
             return scope.resource_id == allowed_resource_id
-        
-        # 如果数据有work_package，检查work_package是否属于该resource_id
-        # 通过rsc_defines表查找：该resource_id对应的work_package是否匹配
-        if scope.work_package:
-            rsc_define = db.query(RSCDefine).filter(
-                RSCDefine.work_package == scope.work_package,
-                RSCDefine.resource_id == allowed_resource_id,
-                RSCDefine.is_active == True
-            ).first()
-            if rsc_define:
-                return True
-        
         return False
     
     @staticmethod

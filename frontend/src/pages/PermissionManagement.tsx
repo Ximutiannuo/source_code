@@ -50,9 +50,7 @@ import {
 import { userService } from '../services/userService'
 import type { User } from '../services/authService'
 import { useAuth } from '../contexts/AuthContext'
-import { facilityFilterService } from '../services/facilityFilterService'
-import { rscService } from '../services/rscService'
-import { activityService } from '../services/activityService'
+
 
 const { Title, Text } = Typography
 
@@ -135,50 +133,14 @@ const PermissionManagement: React.FC = () => {
     enabled: !!selectedUserId,
   })
 
-  // 获取Facility筛选选项
-  const { data: facilityOptions } = useQuery({
-    queryKey: ['facilityFilterOptions'],
-    queryFn: () => facilityFilterService.getOptions(),
-  })
+  // 获取Facility筛选选项 (已移除)
+  const facilityOptions: any = { projects: [], subproject_codes: [] }
 
-  // 获取工作包列表
-  const { data: workPackages = [] } = useQuery({
-    queryKey: ['workPackages'],
-    queryFn: async () => {
-      try {
-        const response = await rscService.getRSCDefinesWithPagination({ limit: 1000 })
-        return Array.from(
-          new Set(response.items.map((item: any) => item.work_package).filter(Boolean))
-        ).sort()
-      } catch {
-        const response = await rscService.getRSCDefines({ limit: 1000 })
-        return Array.from(
-          new Set(response.map((item: any) => item.work_package).filter(Boolean))
-        ).sort()
-      }
-    },
-  })
+  // 获取工作包列表 (已移除)
+  const workPackages: string[] = []
 
-  // 获取Scope列表
-  const { data: scopes = [] } = useQuery({
-    queryKey: ['scopes'],
-    queryFn: async () => {
-      try {
-        // 从activity_summary获取唯一的scope值
-        const response = await activityService.getActivities({ limit: 10000 })
-        const uniqueScopes = Array.from(
-          new Set(
-            response.items
-              ?.map((item: any) => item.scope)
-              .filter((s: any) => s && s.trim() !== '') || []
-          )
-        ).sort()
-        return uniqueScopes
-      } catch {
-        return []
-      }
-    },
-  })
+  // 获取Scope列表 (已移除)
+  const scopes: string[] = []
 
   // 分配权限
   const assignMutation = useMutation({
@@ -709,7 +671,7 @@ const PermissionManagement: React.FC = () => {
                   onChange={(values) =>
                     setSelectedScope({ ...selectedScope, subproject: values[0] || undefined })
                   }
-                  options={facilityOptions?.subproject_codes?.map((sp) => ({
+                  options={facilityOptions?.subproject_codes?.map((sp: string) => ({
                     value: sp,
                     label: sp,
                   }))}
@@ -732,7 +694,7 @@ const PermissionManagement: React.FC = () => {
                   onChange={(values) =>
                     setSelectedScope({ ...selectedScope, project: values[0] || undefined })
                   }
-                  options={facilityOptions?.projects?.map((p) => ({
+                  options={facilityOptions?.projects?.map((p: string) => ({
                     value: p,
                     label: p,
                   }))}

@@ -1,8 +1,6 @@
 import { Avatar, Dropdown, Layout, Menu, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import {
-  ApartmentOutlined,
-  ClusterOutlined,
   CodeSandboxOutlined,
   DashboardOutlined,
   DatabaseOutlined,
@@ -19,15 +17,13 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
-import { createContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '../../contexts/AuthContext'
 import { permissionService } from '../../services/permissionService'
-import type { GlobalFilterState } from '../common/GlobalFilter'
 
-export const GlobalFilterContext = createContext<GlobalFilterState>({})
 
 const { Header, Content } = Layout
 
@@ -73,18 +69,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     if (location.pathname.startsWith('/manufacturing/orders')) return '/manufacturing/orders'
     if (location.pathname.startsWith('/manufacturing/materials')) return '/manufacturing/materials'
     if (location.pathname.startsWith('/manufacturing/bom')) return '/manufacturing/bom'
-    if (
-      location.pathname.startsWith('/manufacturing/process-templates') ||
-      location.pathname.startsWith('/process-template-config')
-    ) {
-      return '/process-template-config'
-    }
     if (location.pathname.startsWith('/manufacturing/procurement')) return '/manufacturing/procurement'
     if (location.pathname.startsWith('/manufacturing/quality')) return '/manufacturing/quality'
     if (location.pathname.startsWith('/manufacturing/equipment')) return '/manufacturing/equipment'
-    if (location.pathname.startsWith('/manufacturing/facilities')) return '/manufacturing/facilities'
     if (location.pathname.startsWith('/manufacturing/drawings')) return '/manufacturing/drawings'
-    if (location.pathname.startsWith('/facility-management')) return '/manufacturing/facilities'
     if (location.pathname.startsWith('/external-data')) return '/manufacturing/drawings'
     if (location.pathname.startsWith('/tools/ocr')) return '/manufacturing/drawings'
     if (location.pathname.startsWith('/account-management')) return '/account-management'
@@ -101,8 +89,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       location.pathname.startsWith('/manufacturing/orders') ||
       location.pathname.startsWith('/manufacturing/materials') ||
       location.pathname.startsWith('/manufacturing/bom') ||
-      location.pathname.startsWith('/manufacturing/process-templates') ||
-      location.pathname.startsWith('/process-template-config') ||
       location.pathname.startsWith('/manufacturing/procurement')
     ) {
       return ['manufacturing-hub']
@@ -111,9 +97,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     if (
       location.pathname.startsWith('/manufacturing/quality') ||
       location.pathname.startsWith('/manufacturing/equipment') ||
-      location.pathname.startsWith('/manufacturing/facilities') ||
       location.pathname.startsWith('/manufacturing/drawings') ||
-      location.pathname.startsWith('/facility-management') ||
       location.pathname.startsWith('/external-data') ||
       location.pathname.startsWith('/tools/ocr')
     ) {
@@ -202,12 +186,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             label: 'BOM 与产品结构',
             onClick: () => handleNavigate('/manufacturing/bom'),
           },
-          {
-            key: '/process-template-config',
-            icon: <ClusterOutlined />,
-            label: '工艺模板与路线',
-            onClick: () => handleNavigate('/process-template-config'),
-          },
+
           {
             key: '/manufacturing/procurement',
             icon: <ShoppingCartOutlined />,
@@ -233,12 +212,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             label: '设备管理',
             onClick: () => handleNavigate('/manufacturing/equipment'),
           },
-          {
-            key: '/manufacturing/facilities',
-            icon: <ApartmentOutlined />,
-            label: '工位与设施',
-            onClick: () => handleNavigate('/manufacturing/facilities'),
-          },
+
           {
             key: '/manufacturing/drawings',
             icon: <FileTextOutlined />,
@@ -400,7 +374,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             padding: '16px',
           }}
         >
-          <GlobalFilterContext.Provider value={{}}>{children}</GlobalFilterContext.Provider>
+          {children}
         </div>
       </Content>
     </Layout>

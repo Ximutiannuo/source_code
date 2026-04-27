@@ -109,7 +109,7 @@ def _payload_to_dict(model: BaseModel) -> Dict[str, Any]:
         return model.dict(exclude_unset=True)
 
 
-@router.get("/", response_model=List[DrawingDocumentRead])
+@router.get("", response_model=List[DrawingDocumentRead])
 async def list_drawing_documents(
     skip: int = 0,
     limit: int = 100,

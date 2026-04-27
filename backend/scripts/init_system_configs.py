@@ -28,7 +28,7 @@ def init_system_configs():
         print("=" * 60)
         
         # 检查表是否存在
-        inspector = inspect(engine)
+        inspector = inspect(engine.connect().engine)
         if "system_configs" not in inspector.get_table_names():
             print("错误: system_configs 表不存在，请先运行 migrate_create_system_configs_table.py")
             return False

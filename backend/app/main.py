@@ -9,13 +9,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, departments, drawing_documents, equipment_mgmt, facility, facility_type
-from app.api import manufacturing_exchange, manufacturing_orders, permissions, process_template, quality as quality_api, users
 from app.database import load_env_with_fallback
+load_env_with_fallback()
+
 from app.utils.logging import setup_logging
 
-if not os.getenv("DATABASE_URL"):
-    load_env_with_fallback()
+from app.api import auth, departments, drawing_documents, equipment_mgmt
+from app.api import manufacturing_exchange, manufacturing_orders, permissions, quality as quality_api, users
 
 setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,12 +70,10 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(users.router, prefix="/api/users", tags=["用户管理"])
-app.include_router(departments.router, prefix="/api", tags=["部门管理"])
+app.include_router(departments.router, prefix="/api/departments", tags=["部门管理"])
 app.include_router(permissions.router, prefix="/api/permissions", tags=["权限管理"])
 
-app.include_router(facility.router, prefix="/api/facility", tags=["工位与设施"])
-app.include_router(facility_type.router, prefix="/api/facility-type", tags=["设施类型"])
-app.include_router(process_template.router, prefix="/api/process-template", tags=["工艺模板"])
+
 app.include_router(manufacturing_orders.router, prefix="/api/manufacturing", tags=["制造订单"])
 app.include_router(manufacturing_exchange.router, prefix="/api/manufacturing", tags=["制造数据交换"])
 app.include_router(quality_api.router, prefix="/api/quality", tags=["质量管理"])

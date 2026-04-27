@@ -1,32 +1,49 @@
-# ProjectControls - Stop All Services
-# ASCII only to ensure compatibility with Windows PowerShell encoding
+Write-Host "========================================="
+Write-Host "      Stopping Manufacturing Platform    "
+Write-Host "========================================="
 
-$NssmPath = "C:\nssm\win64\nssm.exe"
+$pidFile = ".services-pids.json"
 
-Write-Host "=== Stopping ProjectControls Services === " -ForegroundColor Cyan
+if (Test-Path $pidFile) {
+    Write-Host "Found $pidFile, reading PIDs..."
+    $pids = Get-Content $pidFile | ConvertFrom-Json
+    
+    foreach ($service in $pids.psobject.properties) {
+        $name = $service.Name
+        $id = $service.Value
+        
+        Write-Host "Stopping $name (PID: $id)..."
+        try {
+            taskkill /PID $id /T /F 2>&1 | Out-Null
+            Write-Host "Successfully stopped $name." -ForegroundColor Green
+        } catch {
+            Write-Host "Failed to stop $name or process already exited." -ForegroundColor Yellow
+        }
+    }
+    
+    Remove-Item $pidFile -Force
+    Write-Host "Removed $pidFile."
+} else {
+    Write-Host "No $pidFile found. Attempting to kill processes by name..." -ForegroundColor Yellow
+    
+    # Try to stop Node (Frontend) and Python (Backend) processes that might be running for this project
+    # Note: This is a bit aggressive and might stop other node/python processes
+    Write-Host "Stopping any running uvicorn/python backend processes..."
+    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "backend[/\\]run.py" -or $_.CommandLine -match "uvicorn" } | ForEach-Object {
+        Write-Host "Stopping Python process PID: $($_.ProcessId)"
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    
+    Write-Host "Stopping any running Vite/Node frontend processes..."
+    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "vite" } | ForEach-Object {
+        Write-Host "Stopping Node process PID: $($_.ProcessId)"
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
 
-# 1. Stop Backup Scheduler
-Write-Host "Stopping Backup Scheduler (ProjectControlsBackup)..." -ForegroundColor Yellow
-& $NssmPath stop ProjectControlsBackup
-if ($LASTEXITCODE -eq 0) { Write-Host "OK: Backup Scheduler stopped." -ForegroundColor Green }
+    Write-Host "Stopping any running Vault processes..."
+    Get-Process -Name "vault" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
 
-# 2. Stop Sync Worker
-Write-Host "Stopping Sync Worker (ProjectControlsSyncWorker)..." -ForegroundColor Yellow
-& $NssmPath stop ProjectControlsSyncWorker
-if ($LASTEXITCODE -eq 0) { Write-Host "OK: Sync Worker stopped." -ForegroundColor Green }
-
-# 3. Stop Backend
-Write-Host "Stopping Backend (ProjectControlsBackend)..." -ForegroundColor Yellow
-& $NssmPath stop ProjectControlsBackend
-if ($LASTEXITCODE -eq 0) { Write-Host "OK: Backend service stopped." -ForegroundColor Green }
-
-# 4. Stop Nginx
-Write-Host "Stopping Nginx (Nginx)..." -ForegroundColor Yellow
-& $NssmPath stop Nginx
-if ($LASTEXITCODE -eq 0) { Write-Host "OK: Nginx service stopped." -ForegroundColor Green }
-
-# 5. Clean up residual processes
-Write-Host "Cleaning up residual processes..." -ForegroundColor Gray
-Get-Process | Where-Object { $_.ProcessName -eq "python" -or $_.ProcessName -eq "nginx" } | Stop-Process -Force -ErrorAction SilentlyContinue
-
-Write-Host "=== All Services Stopped ===" -ForegroundColor Cyan
+Write-Host "========================================="
+Write-Host "All specified services have been stopped."
+Write-Host "========================================="

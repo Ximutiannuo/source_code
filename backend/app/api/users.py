@@ -19,40 +19,71 @@ class DeptRead(BaseModel):
     name: str
     code: Optional[str]
 
-class UserRead(BaseModel):
-    id: int
+class UserBase(BaseModel):
     username: str
-    email: Optional[str]
-    full_name: Optional[str]
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    department: Optional[DeptRead] = None
+    responsible_for: Optional[str] = None
+
+class UserRead(UserBase):
+    id: int
     is_active: bool
-    is_superuser: bool
-    department: Optional[DeptRead]
-    roles: List[RoleRead]
-    responsible_for: Optional[str]
+    roles: List[RoleRead] = []
 
     class Config:
         from_attributes = True
 
+class UserListResponse(BaseModel):
+    items: List[UserRead]
+    total: int
+    active_count: int
+    inactive_count: int
+
 class UserCreate(BaseModel):
     username: str
-    password: str
+    password: Optional[str] = None
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     department_id: Optional[int] = None
     role_ids: List[int] = []
 
-@router.get("/", response_model=List[UserRead])
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    department_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+    role_ids: Optional[List[int]] = None
+    responsible_for: Optional[str] = None
+
+@router.get("/", response_model=UserListResponse)
 async def get_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     skip: int = 0,
     limit: int = 100,
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    department_id: Optional[int] = None
 ):
     query = db.query(User)
     if search:
         query = query.filter(User.username.like(f"%{search}%") | User.full_name.like(f"%{search}%"))
-    return query.offset(skip).limit(limit).all()
+    if department_id:
+        query = query.filter(User.department_id == department_id)
+        
+    total = query.count()
+    items = query.offset(skip).limit(limit).all()
+    
+    active_count = db.query(User).filter(User.is_active == True).count()
+    inactive_count = db.query(User).filter(User.is_active == False).count()
+    
+    return {
+        "items": items,
+        "total": total,
+        "active_count": active_count,
+        "inactive_count": inactive_count
+    }
 
 @router.post("/", response_model=UserRead)
 async def create_user(
@@ -71,7 +102,8 @@ async def create_user(
         department_id=user_in.department_id,
         is_active=True
     )
-    new_user.set_password(user_in.password)
+    password = user_in.password or "Ww@1932635539"
+    new_user.set_password(password)
     
     if user_in.role_ids:
         roles = db.query(Role).filter(Role.id.in_(user_in.role_ids)).all()
@@ -81,6 +113,38 @@ async def create_user(
     db.commit()
     db.refresh(new_user)
     return new_user
+
+@router.put("/{user_id}", response_model=UserRead)
+async def update_user(
+    user_id: int,
+    user_in: UserUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_system_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户未找到")
+    
+    if user_in.email is not None:
+        user.email = user_in.email
+    if user_in.full_name is not None:
+        user.full_name = user_in.full_name
+    if user_in.department_id is not None:
+        user.department_id = user_in.department_id
+    if user_in.is_active is not None:
+        user.is_active = user_in.is_active
+    if user_in.responsible_for is not None:
+        user.responsible_for = user_in.responsible_for
+    if user_in.password:
+        user.set_password(user_in.password)
+        
+    if user_in.role_ids is not None:
+        roles = db.query(Role).filter(Role.id.in_(user_in.role_ids)).all()
+        user.roles = roles
+        
+    db.commit()
+    db.refresh(user)
+    return user
 
 @router.delete("/{user_id}")
 async def delete_user(

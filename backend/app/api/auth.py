@@ -24,7 +24,9 @@ class UserInfo(BaseModel):
     username: str
     full_name: Optional[str]
     is_active: bool
+    is_superuser: bool
     roles: List[UserRoleInfo]
+    can_access_account_management: bool = False
 
 @router.post("/login", response_model=Token)
 async def login_for_access_token(
@@ -51,5 +53,7 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
         "username": current_user.username,
         "full_name": current_user.full_name,
         "is_active": current_user.is_active,
-        "roles": [{"id": r.id, "name": r.name} for r in current_user.roles]
+        "is_superuser": current_user.is_superuser,
+        "roles": [{"id": r.id, "name": r.name} for r in current_user.roles],
+        "can_access_account_management": current_user.is_superuser or any(r.name == '系统管理员' for r in current_user.roles)
     }

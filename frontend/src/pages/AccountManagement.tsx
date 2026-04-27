@@ -502,10 +502,11 @@ const AccountManagement: React.FC = () => {
     setUserDrawerVisible(true)
   }
 
-  const handleEditUser = (record: User) => {
+  const handleEditUser = (record: any) => {
     setEditingUser(record)
     userForm.setFieldsValue({
       ...record,
+      role_ids: record.roles?.map((r: any) => r.id) || []
     })
     setUserDrawerVisible(true)
   }
@@ -1544,6 +1545,23 @@ const AccountManagement: React.FC = () => {
             <Select allowClear placeholder="请选择制造组织部门" options={departmentOptions} />
           </Form.Item>
 
+          <Form.Item name="role_ids" label="分配职位角色">
+            <Select
+              mode="multiple"
+              placeholder="请选择岗位职位（可多选）"
+              allowClear
+              options={roles.filter(r => r.is_active).map(r => ({
+                label: (
+                  <Space>
+                    <span>{r.name}</span>
+                    <small style={{ color: '#999' }}>({findRoleTemplate(r)?.department || '自定义'})</small>
+                  </Space>
+                ),
+                value: r.id
+              }))}
+            />
+          </Form.Item>
+
           <Form.Item name="responsible_for" label="主要工作职责">
             <Input.TextArea rows={2} placeholder="如：订单评审、工艺审核、APS 排产、供应跟催、工位报工审核、质量放行等" />
           </Form.Item>
@@ -1689,9 +1707,86 @@ const AccountManagement: React.FC = () => {
               <div style={{ marginTop: 12 }}>
                 {userPermissions ? (
                   <div>
-                    <div style={{ marginBottom: 8, color: '#999', fontSize: 12 }}>
-                      共 {userPermissions.permissions.length} 个权限
+                    <div style={{ marginBottom: 16 }}>
+                      <Alert 
+                        type="info" 
+                        message="权限视角：已按制造模块对员工拥有的分散权限进行了矩阵聚合。" 
+                        showIcon 
+                      />
                     </div>
+                    <Table
+                      columns={[
+                        {
+                          title: '业务模块',
+                          dataIndex: 'label',
+                          key: 'label',
+                          fixed: 'left',
+                          width: 180,
+                          render: (text, record) => (
+                            <Space direction="vertical" size={0}>
+                              <span style={{ fontWeight: 600 }}>{text}</span>
+                              <small style={{ color: '#999' }}>{record.category}</small>
+                            </Space>
+                          )
+                        },
+                        ...['read', 'create', 'update', 'delete', 'report', 'release', 'assign', 'sync'].map(actionKey => ({
+                          title: actionKey === 'read' ? '查看' : 
+                                 actionKey === 'create' ? '新增/发布' : 
+                                 actionKey === 'update' ? '修改/维护' : 
+                                 actionKey === 'delete' ? '删除/撤回' :
+                                 actionKey === 'report' ? '报工' :
+                                 actionKey === 'release' ? '质量放行' :
+                                 actionKey === 'assign' ? '授权' : '同步',
+                          key: actionKey,
+                          align: 'center' as const,
+                          width: 100,
+                          render: (_: any, record: any) => {
+                            const hasAct = record.actions.find((a: any) => a.action === actionKey);
+                            if (!hasAct) return <span style={{ color: '#f0f0f0' }}>-</span>;
+                            return (
+                              <Tooltip title={
+                                <div>
+                                  <div>来源: {hasAct.source}</div>
+                                  {hasAct.scope && <div>范围限制: {JSON.stringify(hasAct.scope)}</div>}
+                                </div>
+                              }>
+                                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
+                              </Tooltip>
+                            );
+                          }
+                        }))
+                      ]}
+                      dataSource={(() => {
+                        const matrix = {};
+                        userPermissions.permissions.forEach((p) => {
+                          const config = getResourceTypeConfig(p.resource_type);
+                          if (!matrix[p.resource_type]) {
+                            matrix[p.resource_type] = {
+                              key: p.resource_type,
+                              label: config.label,
+                              category: config.category,
+                              actions: []
+                            };
+                          }
+                          matrix[p.resource_type].actions.push({
+                            action: p.action,
+                            source: p.source,
+                            scope: p.scope
+                          });
+                        });
+                        return Object.values(matrix).sort((a, b) => {
+                          const order = { '制造协同': 0, '平台治理': 1, '遗留工程': 2 };
+                          return (order[a.category] ?? 9) - (order[b.category] ?? 9);
+                        });
+                      })()}
+                      rowKey="key"
+                      pagination={false}
+                      size="small"
+                      scroll={{ x: 1000 }}
+                      bordered
+                    />
+                    
+                    <Divider orientation="left" style={{ marginTop: 32 }}>原始权限明细</Divider>
                     <Table
                       columns={[
                         {
@@ -1699,7 +1794,7 @@ const AccountManagement: React.FC = () => {
                           dataIndex: 'permission_code',
                           key: 'permission_code',
                           width: 200,
-                          render: (code: string) => <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>{code}</code>,
+                          render: (code) => <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>{code}</code>,
                         },
                         {
                           title: '权限名称',
@@ -1710,23 +1805,17 @@ const AccountManagement: React.FC = () => {
                           title: '业务模块',
                           dataIndex: 'resource_type',
                           key: 'resource_type',
-                          width: 240,
-                          render: (resourceType: string) => {
+                          width: 200,
+                          render: (resourceType) => {
                             const config = getResourceTypeConfig(resourceType)
-                            return (
-                              <Space wrap size={[4, 4]}>
-                                <Tag color={config.legacy ? 'gold' : 'blue'}>{config.label}</Tag>
-                                <Tag>{config.category}</Tag>
-                              </Space>
-                            )
+                            return <Tag color={config.legacy ? 'gold' : 'blue'}>{config.label}</Tag>
                           },
                         },
                         {
                           title: '来源',
                           dataIndex: 'source',
                           key: 'source',
-                          width: 150,
-                          render: (source: string) => {
+                          render: (source) => {
                             if (source?.startsWith('role:')) {
                               return <Tag color="purple">角色: {source.replace('role:', '')}</Tag>
                             }

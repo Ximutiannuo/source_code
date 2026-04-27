@@ -82,13 +82,11 @@ class Permission(Base):
     project = Column(String(100), nullable=True, index=True, comment="项目范围限制")
     subproject = Column(String(100), nullable=True, index=True, comment="子项目范围限制")
     block = Column(String(100), nullable=True, index=True, comment="区块范围限制")
-    facility_id = Column(Integer, ForeignKey("facilities.id", ondelete='SET NULL'), nullable=True, index=True, comment="Facility范围限制")
     work_package = Column(String(100), nullable=True, index=True, comment="工作包范围限制（来自rsc_defines.work_package）")
     
     created_at = Column(DateTime, default=system_now, comment="创建时间")
     
     # 关系
-    facility = relationship("Facility", lazy="selectin")
     user_permissions = relationship("UserPermission", back_populates="permission", cascade="all, delete-orphan", lazy="dynamic")
     role_permissions = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan", lazy="dynamic")
 
@@ -112,7 +110,6 @@ class UserPermission(Base):
     main_block = Column(String(100), nullable=True, index=True, comment="Main_Block范围限制")
     quarter = Column(String(100), nullable=True, index=True, comment="Quarter范围限制")
     simple_block = Column(String(100), nullable=True, index=True, comment="Simple_Block范围限制")
-    facility_id = Column(Integer, ForeignKey("facilities.id", ondelete='SET NULL'), nullable=True, index=True, comment="Facility范围限制")
     discipline = Column(String(100), nullable=True, index=True, comment="专业范围限制")
     work_package = Column(String(100), nullable=True, index=True, comment="工作包范围限制")
     resource_id = Column(String(100), nullable=True, index=True, comment="资源ID范围限制（来自rsc_defines）")
@@ -122,7 +119,6 @@ class UserPermission(Base):
     # 关系
     user = relationship("User", back_populates="permissions", lazy="selectin")
     permission = relationship("Permission", back_populates="user_permissions", lazy="selectin")
-    facility = relationship("Facility", lazy="selectin")
 
 
 class RolePermission(Base):
@@ -143,7 +139,6 @@ class RolePermission(Base):
     main_block = Column(String(100), nullable=True, index=True, comment="Main_Block范围限制")
     quarter = Column(String(100), nullable=True, index=True, comment="Quarter范围限制")
     simple_block = Column(String(100), nullable=True, index=True, comment="Simple_Block范围限制")
-    facility_id = Column(Integer, ForeignKey("facilities.id", ondelete='SET NULL'), nullable=True, index=True, comment="Facility范围限制")
     discipline = Column(String(100), nullable=True, index=True, comment="专业范围限制")
     work_package = Column(String(100), nullable=True, index=True, comment="工作包范围限制（来自rsc_defines.work_package，resource_id的最小单元，可通过rsc_defines表映射到resource_id）")
     
@@ -152,4 +147,3 @@ class RolePermission(Base):
     # 关系
     role = relationship("Role", back_populates="permissions", lazy="selectin")
     permission = relationship("Permission", back_populates="role_permissions", lazy="selectin")
-    facility = relationship("Facility", lazy="selectin")

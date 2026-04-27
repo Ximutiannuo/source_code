@@ -59,7 +59,6 @@ import {
   type WorkReportCreate,
 } from '../services/manufacturingOrderService'
 import { plmService } from '../services/plmService'
-import { processTemplateService } from '../services/processTemplateService'
 
 const { Title, Text } = Typography
 
@@ -557,13 +556,8 @@ const ManufacturingOrderManagement: React.FC = () => {
     queryFn: () => plmService.getBOMs(),
   })
 
-  const { data: processTemplates = [] } = useQuery({
-    queryKey: ['manufacturing-order-process-templates'],
-    queryFn: async () => {
-      const response = await processTemplateService.listTemplates()
-      return response.data
-    },
-  })
+  // Removed processTemplates query as the service is deprecated.
+  const processTemplates: { id: number; name: string }[] = []
 
   const { data: selectedOrder, isFetching: isDetailLoading, refetch: refetchDetail } = useQuery({
     queryKey: ['manufacturing-order-detail', selectedOrderId],

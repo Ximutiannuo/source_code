@@ -1,15 +1,17 @@
-# ProjectControls - Restart All Services
-# ASCII only to ensure compatibility with Windows PowerShell encoding
+Write-Host "========================================="
+Write-Host "     Restarting Manufacturing Platform   "
+Write-Host "========================================="
 
-Write-Host "=== Executing Full Restart Process ===" -ForegroundColor Cyan
+$scriptDir = $PSScriptRoot
 
-# Execute Stop
-& "$PSScriptRoot\Stop-All-Services.ps1"
+Write-Host "1. Stopping services..."
+& "$scriptDir\Stop-All-Services.ps1"
 
-Write-Host "Waiting for resources to release (3s)..." -ForegroundColor Gray
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 2
 
-# Execute Start
-& "$PSScriptRoot\Start-All-Services.ps1"
+Write-Host "`n2. Starting services..."
+& "$scriptDir\Start-All-Services.ps1"
 
-Write-Host "=== Restart Process Completed ===" -ForegroundColor Cyan
+Write-Host "========================================="
+Write-Host "          Restart Complete!              "
+Write-Host "========================================="

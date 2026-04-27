@@ -65,6 +65,60 @@ export const RESOURCE_TYPE_CONFIG: Record<string, ResourceTypeConfig> = {
       { value: 'revoke', label: '撤销', color: 'magenta' },
     ],
   },
+  manufacturing_order: {
+    label: '制造订单与工单',
+    description: '制造订单管理、工单下发、报工审核与进度追踪。',
+    category: '制造协同',
+    actions: [
+      { value: 'read', label: '查看', color: 'blue' },
+      { value: 'create', label: '下发', color: 'green' },
+      { value: 'update', label: '维护', color: 'orange' },
+      { value: 'delete', label: '撤回', color: 'red' },
+      { value: 'report', label: '报工审核', color: 'purple' },
+    ],
+  },
+  bom: {
+    label: 'BOM 与产品结构',
+    description: '物料主数据、EBOM/PBOM 维护、BOM 齐套分析。',
+    category: '制造协同',
+    actions: [
+      { value: 'read', label: '查看', color: 'blue' },
+      { value: 'create', label: '新增', color: 'green' },
+      { value: 'update', label: '维护', color: 'orange' },
+      { value: 'delete', label: '删除', color: 'red' },
+    ],
+  },
+  procurement: {
+    label: '采购与齐套',
+    description: '采购需求审核、到料跟催、供应商协同。',
+    category: '制造协同',
+    actions: [
+      { value: 'read', label: '查看', color: 'blue' },
+      { value: 'create', label: '下单', color: 'green' },
+      { value: 'update', label: '跟催', color: 'orange' },
+    ],
+  },
+  quality: {
+    label: '质量管理',
+    description: '来料检验、首件/巡检、完工检、不合格处理与质量报告。',
+    category: '制造协同',
+    actions: [
+      { value: 'read', label: '查看', color: 'blue' },
+      { value: 'create', label: '录入', color: 'green' },
+      { value: 'update', label: '判定', color: 'orange' },
+      { value: 'release', label: '放行', color: 'purple' },
+    ],
+  },
+  drawing: {
+    label: '图纸与技术资料',
+    description: '图纸版本、设计资料库、ECN 变更。',
+    category: '制造协同',
+    actions: [
+      { value: 'read', label: '查看', color: 'blue' },
+      { value: 'create', label: '发布', color: 'green' },
+      { value: 'update', label: '变更', color: 'orange' },
+    ],
+  },
   exhibition_report: {
     label: '现场报表（遗留）',
     description: '原工程建设场景的报表权限，建议逐步迁移至制造经营看板。',

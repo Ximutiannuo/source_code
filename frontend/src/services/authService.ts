@@ -39,6 +39,7 @@ export interface UserCreate {
   department_id?: number  // 所属部门
   is_active?: boolean
   is_superuser?: boolean
+  role_ids?: number[]  // 初始分配的角色 ID
 }
 
 export interface UserResponse extends User {
@@ -53,6 +54,7 @@ export interface UserUpdate {
   is_active?: boolean
   is_superuser?: boolean
   password?: string
+  role_ids?: number[]  // 批量更新的角色 ID
 }
 
 // Token管理
